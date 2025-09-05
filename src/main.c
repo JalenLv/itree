@@ -6,6 +6,7 @@
 #include "cJSON.h"
 #include "helpers.h"
 #include "file_tree.h"
+#include "draw_tree.h"
 
 // Helpers for file I/O
 int open_io(Args args, FILE **input, FILE **output);
@@ -38,7 +39,24 @@ int main(int argc, char *argv[]) {
         close_io(input, output);
         return 1;
     }
-    printf("%s\n", cJSON_Print(file_tree));
+
+    /** DEBUG **/
+    // cJSON *obj = cJSON_GetArrayItem(file_tree, 0); // .
+    // obj = cJSON_GetObjectItemCaseSensitive(obj, "contents");
+    // obj = cJSON_GetArrayItem(obj, 3); // ./extern
+    // obj = cJSON_GetObjectItemCaseSensitive(obj, "contents");
+    // obj = cJSON_GetArrayItem(obj, 0); // ./extern/cJSON
+    // obj = cJSON_GetObjectItemCaseSensitive(obj, "contents");
+    // obj = cJSON_GetArrayItem(obj, 0); // ./extern/cJSON/include
+    // obj = cJSON_GetObjectItemCaseSensitive(obj, "collapsed");
+    // cJSON_SetBoolValue(obj, 1);
+    /** DEBUG **/
+
+    // Draw tree
+    if (draw_tree(file_tree, output) != 0) {
+        fprintf(stderr, "Error: Failed to draw file tree.\n");
+        return 1;
+    }
 
     // Clean up
     close_io(input, output);
