@@ -19,17 +19,11 @@ cJSON *create_file_tree(FILE *input) {
 cJSON *parse_json(FILE *input) {
     char *json_string = strdup("");
 
-    size_t len;
-    char *line;
-    while ((line = fgetln(input, &len)) != NULL) {
-        char *line_null = malloc(len + 1);
-        memcpy(line_null, line, len);
-        line_null[len] = '\0';
-
+    char buffer[4096];
+    while (fgets(buffer, sizeof(buffer), input) != NULL) {
         char *old_json_string = json_string;
-        json_string = concat(old_json_string, line_null);
+        json_string = concat(old_json_string, buffer);
         free(old_json_string);
-        free(line_null);
     }
 
     cJSON *json = cJSON_Parse(json_string);
