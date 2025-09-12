@@ -33,33 +33,32 @@ int main(int argc, char *argv[]) {
     }
 
     // Create file tree
-    cJSON *file_tree = create_file_tree(input);
+    FileTreeNode *file_tree = create_file_tree(input);
     if (file_tree == NULL) {
-        fprintf(stderr, "Error: Failed to parse JSON input.\n");
+        fprintf(stderr, "Error: Failed to create file tree.\n");
         close_io(input, output);
         return 1;
     }
 
     /** DEBUG **/
-    // cJSON *obj = cJSON_GetArrayItem(file_tree, 0); // .
-    // obj = cJSON_GetObjectItemCaseSensitive(obj, "contents");
-    // obj = cJSON_GetArrayItem(obj, 3); // ./extern
-    // obj = cJSON_GetObjectItemCaseSensitive(obj, "contents");
-    // obj = cJSON_GetArrayItem(obj, 0); // ./extern/cJSON
-    // obj = cJSON_GetObjectItemCaseSensitive(obj, "contents");
-    // obj = cJSON_GetArrayItem(obj, 0); // ./extern/cJSON/include
-    // obj = cJSON_GetObjectItemCaseSensitive(obj, "collapsed");
-    // cJSON_SetBoolValue(obj, 1);
+    // FileTreeNode *node = file_tree;
+    // node = DA_GET(FileTreeNode *, &(node->children), 3); // ./extern
+    // node = DA_GET(FileTreeNode *, &(node->children), 0); // ./extern/cJSON
+    // node = DA_GET(FileTreeNode *, &(node->children), 0); // ./extern/cJSON/include
+    // node->collapsed = 1;
     /** DEBUG **/
 
     // Draw tree
     if (draw_tree(file_tree, output) != 0) {
         fprintf(stderr, "Error: Failed to draw file tree.\n");
+        close_io(input, output);
         return 1;
     }
 
     // Clean up
     close_io(input, output);
+    // TODO: Implement a proper free function for the tree
+    free(file_tree);
     return 0;
 }
 

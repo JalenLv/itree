@@ -5,26 +5,49 @@
 #define FILE_TREE_H
 
 #include "cJSON.h"
+#include <stdio.h>
+
+typedef enum NodeType {
+    FILE_NODE,
+    DIRECTORY_NODE
+} NodeType;
+
+typedef struct FileTreeNode FileTreeNode;
+
+typedef struct Children {
+    int count;
+    int capacity;
+    FileTreeNode **items;
+} Children;
+
+typedef struct FileTreeNode {
+    NodeType type;
+    char *name;
+    Children children;
+    FileTreeNode *parent;
+    int collapsed; // 0 for expanded, 1 for collapsed; expanded by default
+} FileTreeNode;
 
 /**
  * Creates a file tree from the given input file.
- * The items in the returned cJSON object represent either files or directories.
- * And the items contain another field "collapsed" to represent whether the directory is expanded or not.
- * The initial state is that all directories are expanded (collapsed = 0).
+ * All directories are expanded (collapsed = 0) initially.
+ * The collapsed field is NULL for file nodes.
+ * Returns NULL if fails.
+ * The caller is responsible for freeing the returned tree.
  */
-cJSON *create_file_tree(FILE *input);
+FileTreeNode *create_file_tree(FILE *input);
 
 /**
  * Parses JSON from the given input file and returns the corresponding cJSON object.
- * The returned cJSON object does not have the "collapsed" field initialized.
  * Returns NULL if parsing fails.
  */
 cJSON *parse_json(FILE *input);
 
 /**
- * Initializes the "collapsed" field to 0 (expanded) for all directories.
- * Returns the modified cJSON object.
+ * Creates a FileTreeNode structure from the given cJSON object.
+ * Returns NULL if fails.
+ * The caller is responsible for freeing the returned tree.
  */
-cJSON *init_collapsed_state(cJSON *file_tree);
+FileTreeNode *create_tree_from_cjson(cJSON *json);
 
 #endif // FILE_TREE_H

@@ -12,53 +12,46 @@
 /**
  * Recursively draws the sub file tree.
  */
-int draw_node_recursive(cJSON *sub_file_tree, FILE *output, char *prefix, int is_last, int is_root) {
+int draw_node_recursive(FileTreeNode *sub_file_tree, FILE *output, char *prefix, int is_last, int is_root) {
     // Print the current node
-    cJSON *type = cJSON_GetObjectItemCaseSensitive(sub_file_tree, "type");
-    cJSON *name = cJSON_GetObjectItemCaseSensitive(sub_file_tree, "name");
-    char *type_str = cJSON_GetStringValue(type);
-    char *name_str = cJSON_GetStringValue(name);
+    NodeType type = sub_file_tree->type;
+    char *name = sub_file_tree->name;
 
     char *suffix = NULL;
-    if (strcmp(type_str, "file") == 0) {
+    if (type == FILE_NODE) {
         suffix = "";
-    } else if (strcmp(type_str, "directory") == 0) {
+    } else if (type == DIRECTORY_NODE) {
         suffix = "/";
     } else {
-        fprintf(stderr, "Unknown type: %s\n", type_str);
+        fprintf(stderr, "Unknown type\n");
         return 1;
     }
 
     fprintf(output, "%s%s%s%s\n",
-            prefix, (is_root ? "" : (is_last ? TREE_LAST : TREE_BRANCH)), name_str, suffix);
+            prefix, (is_root ? "" : (is_last ? TREE_LAST : TREE_BRANCH)), name, suffix);
 
     // If it's a directory and not collapsed, print its children
-    cJSON *collapsed = cJSON_GetObjectItemCaseSensitive(sub_file_tree, "collapsed");
-    if (
-        (!cJSON_IsTrue(collapsed))
-        && cJSON_HasObjectItem(sub_file_tree, "contents")
-    ) {
-        cJSON *contents = cJSON_GetObjectItemCaseSensitive(sub_file_tree, "contents");
-        cJSON *child = NULL;
-        size_t n_children = cJSON_GetArraySize(contents);
-        size_t i = 1;
-        cJSON_ArrayForEach(child, contents) {
+    if ((type == DIRECTORY_NODE) && (!sub_file_tree->collapsed)) {
+        int n_children = sub_file_tree->children.count;
+        for (int i = 0; i < n_children; i++) {
+            // FileTreeNode *child = sub_file_tree->children.items[i];
+            FileTreeNode *child = DA_GET(FileTreeNode *, &(sub_file_tree->children), i);
             char *new_prefix = is_root ? prefix : concat(prefix, is_last ? strdup(TREE_SPACE) : strdup(TREE_VERT));
-            int new_is_last = (i == n_children);
+            int new_is_last = (i == n_children - 1);
             draw_node_recursive(child, output, new_prefix, new_is_last, 0);
-            i++;
         }
     }
 
     return 0;
 }
 
-int draw_tree(cJSON *file_tree, FILE *output) {
-    cJSON *real_file_tree = cJSON_GetArrayItem(file_tree, 0);
-
+int draw_tree(FileTreeNode *file_tree, FILE *output) {
     char *prefix = strdup("");
     int is_last = 1; // Root is always the last node at its level
-    draw_node_recursive(real_file_tree, output, prefix, is_last, 1);
+    if (draw_node_recursive(file_tree, output, prefix, is_last, 1) != 0) {
+        fprintf(stderr, "Error: Failed to draw some node.\n");
+        return 1;
+    }
 
     return 0;
 }

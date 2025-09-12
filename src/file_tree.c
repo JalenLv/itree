@@ -6,13 +6,24 @@
 #include "file_tree.h"
 #include "helpers.h"
 
-cJSON *create_file_tree(FILE *input) {
+FileTreeNode *create_file_tree(FILE *input) {
     // Read and parse JSON
-    cJSON *file_tree = parse_json(input);
+    cJSON *file_tree_json = parse_json(input);
+    if (file_tree_json == NULL) {
+        fprintf(stderr, "Error: Failed to parse JSON input.\n");
+        return NULL;
+    }
 
-    // Init collapsed state
-    file_tree = init_collapsed_state(file_tree);
+    // Create file tree structure from cJSON object
+    FileTreeNode *file_tree = create_tree_from_cjson(file_tree_json);
+    if (file_tree == NULL) {
+        fprintf(stderr, "Error: Failed to create file tree from JSON.\n");
+        cJSON_Delete(file_tree_json);
+        return NULL;
+    }
 
+    // Clean up
+    cJSON_Delete(file_tree_json);
     return file_tree;
 }
 
@@ -27,53 +38,92 @@ cJSON *parse_json(FILE *input) {
     }
 
     cJSON *json = cJSON_Parse(json_string);
+    if (json == NULL) {
+        free(json_string);
+        return NULL;
+    }
+
     free(json_string);
     return json;
 }
 
-/**
- * Recursively initializes the "collapsed" field to 0 (expanded) for all directories in the sub file tree.
- * Returns 0 on success, 1 on failure.
- */
-int init_collapsed_recursive(cJSON *sub_file_tree) {
-    cJSON *type = cJSON_GetObjectItemCaseSensitive(sub_file_tree, "type");
+FileTreeNode *create_tree_from_cjson_recursive(cJSON *file_tree_json, FileTreeNode *parent) {
+    FileTreeNode *node = malloc(sizeof(FileTreeNode));
+    if (node == NULL) {
+        return NULL;
+    }
+
+    cJSON *type = cJSON_GetObjectItemCaseSensitive(file_tree_json, "type");
     char *type_str = cJSON_GetStringValue(type);
+    if (type_str == NULL) {
+        free(node);
+        return NULL;
+    } else if (strcmp(type_str, "file") == 0) {
+        node->type = FILE_NODE;
+    } else if (strcmp(type_str, "directory") == 0) {
+        node->type = DIRECTORY_NODE;
+    } else {
+        free(node);
+        return NULL;
+    }
 
-    // If the type is directory, add the "collapsed" item
-    // and recursively init every children inside "contents".
-    // If the directory has no children, just add the "collapsed" item
-    // and stop the recursion.
-    if (strcmp(type_str, "directory") == 0) {
-        // Add "collapsed" item
-        cJSON_AddBoolToObject(sub_file_tree, "collapsed", 0);
-
-        // Recurse into every children inside "contents"
-        if (cJSON_HasObjectItem(sub_file_tree, "contents")) {
-            cJSON *contents = cJSON_GetObjectItemCaseSensitive(sub_file_tree, "contents");
-            cJSON *child = NULL;
-            cJSON_ArrayForEach(child, contents) {
-                if (init_collapsed_recursive(child) != 0) {
-                    fprintf(stderr, "Error: Failed to initialize collapsed state for child node %s.\n", cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(child, "name")));
-                    return 1;
-                }
-            }
+    cJSON *name = cJSON_GetObjectItemCaseSensitive(file_tree_json, "name");
+    char *name_str = cJSON_GetStringValue(name);
+    if (name_str == NULL) {
+        free(node);
+        return NULL;
+    }
+    node->name = strdup(name_str);
+    node->children = (Children){0};
+    node->parent = parent;
+    node->collapsed = (node->type == DIRECTORY_NODE) ? 0 : NULL;
+    cJSON *child = NULL;
+    cJSON *children = cJSON_GetObjectItemCaseSensitive(file_tree_json, "contents");
+    cJSON_ArrayForEach(child, children) {
+        FileTreeNode *child_node = create_tree_from_cjson_recursive(child, node);
+        if (child_node != NULL) {
+            DA_PUSH(FileTreeNode *, &(node->children), child_node);
+        } else {
+            // Clean up should be done from top to bottom,
+            // i.e., the `free` function should recursively
+            // do the clean up for the root.
+            return NULL;
         }
-        return 0;
     }
 
-    // If the type is file, do nothing and stop the recursion.
-    if (strcmp(type_str, "file") == 0) {
-        return 0;
-    }
-
-    // Unknown type
-    return 1;
+    return node;
 }
 
-cJSON *init_collapsed_state(cJSON *file_tree) {
-    cJSON *real_file_tree = cJSON_GetArrayItem(file_tree, 0);
+FileTreeNode *create_tree_from_cjson(cJSON *file_tree_json) {
+    // Discard report from the tree program
+    cJSON *real_file_tree_json = cJSON_GetArrayItem(file_tree_json, 0);
+    if (real_file_tree_json == NULL) {
+        return NULL;
+    }
 
-    init_collapsed_recursive(real_file_tree);
+    FileTreeNode *root = malloc(sizeof(FileTreeNode));
+    if (root == NULL) {
+        return NULL;
+    }
+    root->type = DIRECTORY_NODE;
+    root->name = strdup(".");
+    root->children = (Children){0};
+    root->parent = NULL;
+    root->collapsed = 0;
+    // Recursively build the tree
+    cJSON *child = NULL;
+    cJSON *children = cJSON_GetObjectItemCaseSensitive(real_file_tree_json, "contents");
+    cJSON_ArrayForEach(child, children) {
+        FileTreeNode *child_node = create_tree_from_cjson_recursive(child, root);
+        if (child_node != NULL) {
+            // Add child_node to root's children
+            DA_PUSH(FileTreeNode *, &(root->children), child_node);
+        } else {
+            // TODO: implement a proper free function for the tree
+            free(root);
+            return NULL;
+        }
+    }
 
-    return file_tree;
+    return root;
 }
