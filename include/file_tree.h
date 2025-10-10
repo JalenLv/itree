@@ -6,6 +6,7 @@
 
 #include "cJSON.h"
 #include <stdio.h>
+#include "helpers.h"
 
 typedef enum NodeType {
     FILE_NODE,
@@ -15,9 +16,7 @@ typedef enum NodeType {
 typedef struct FileTreeNode FileTreeNode;
 
 typedef struct Children {
-    int count;
-    int capacity;
-    FileTreeNode **items;
+    DA_FIELDS(FileTreeNode *);
 } Children;
 
 typedef struct FileTreeNode {
@@ -26,6 +25,7 @@ typedef struct FileTreeNode {
     Children children;
     FileTreeNode *parent;
     int collapsed; // 0 for expanded, 1 for collapsed; expanded by default
+    int depth; // depth in the tree, root is 0
 } FileTreeNode;
 
 /**

@@ -47,7 +47,7 @@ cJSON *parse_json(FILE *input) {
     return json;
 }
 
-FileTreeNode *create_tree_from_cjson_recursive(cJSON *file_tree_json, FileTreeNode *parent) {
+FileTreeNode *create_tree_from_cjson_recursive(cJSON *file_tree_json, int depth) {
     FileTreeNode *node = malloc(sizeof(FileTreeNode));
     if (node == NULL) {
         return NULL;
@@ -75,12 +75,12 @@ FileTreeNode *create_tree_from_cjson_recursive(cJSON *file_tree_json, FileTreeNo
     }
     node->name = strdup(name_str);
     node->children = (Children){0};
-    node->parent = parent;
     node->collapsed = (node->type == DIRECTORY_NODE) ? 0 : NULL;
+    node->depth = depth;
     cJSON *child = NULL;
     cJSON *children = cJSON_GetObjectItemCaseSensitive(file_tree_json, "contents");
     cJSON_ArrayForEach(child, children) {
-        FileTreeNode *child_node = create_tree_from_cjson_recursive(child, node);
+        FileTreeNode *child_node = create_tree_from_cjson_recursive(child, depth + 1);
         if (child_node != NULL) {
             DA_PUSH(FileTreeNode *, &(node->children), child_node);
         } else {
@@ -108,13 +108,13 @@ FileTreeNode *create_tree_from_cjson(cJSON *file_tree_json) {
     root->type = DIRECTORY_NODE;
     root->name = strdup(".");
     root->children = (Children){0};
-    root->parent = NULL;
     root->collapsed = 0;
+    root->depth = 0;
     // Recursively build the tree
     cJSON *child = NULL;
     cJSON *children = cJSON_GetObjectItemCaseSensitive(real_file_tree_json, "contents");
     cJSON_ArrayForEach(child, children) {
-        FileTreeNode *child_node = create_tree_from_cjson_recursive(child, root);
+        FileTreeNode *child_node = create_tree_from_cjson_recursive(child, 1);
         if (child_node != NULL) {
             // Add child_node to root's children
             DA_PUSH(FileTreeNode *, &(root->children), child_node);

@@ -31,5 +31,8 @@ helpers.o: $(SRC_DIR)/helpers.c
 draw_tree.o: $(SRC_DIR)/draw_tree.c
 	gcc $(CFLAGS) -c $(SRC_DIR)/draw_tree.c -I$(INCLUDE_DIR) -I$(EXTERN_DIR)/cJSON/include -o draw_tree.o
 
-itree: main.o cJSON.o argparse.o file_tree.o helpers.o draw_tree.o
-	gcc main.o cJSON.o argparse.o file_tree.o helpers.o draw_tree.o -o itree
+tui.o: $(SRC_DIR)/tui.c
+	gcc $(CFLAGS) -c $(SRC_DIR)/tui.c -I$(INCLUDE_DIR) -I$(EXTERN_DIR)/cJSON/include -o tui.o -lncurses
+
+itree: main.o cJSON.o argparse.o file_tree.o helpers.o draw_tree.o tui.o
+	gcc main.o cJSON.o argparse.o file_tree.o helpers.o draw_tree.o tui.o -o itree -lncurses

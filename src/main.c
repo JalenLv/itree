@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ncurses.h>
 
 #include "argparse.h"
 #include "cJSON.h"
 #include "helpers.h"
 #include "file_tree.h"
 #include "draw_tree.h"
+#include "tui.h"
 
 // Helpers for file I/O
 int open_io(Args args, FILE **input, FILE **output);
@@ -40,18 +42,19 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /** DEBUG **/
-    // FileTreeNode *node = file_tree;
-    // node = DA_GET(FileTreeNode *, &(node->children), 3); // ./extern
-    // node = DA_GET(FileTreeNode *, &(node->children), 0); // ./extern/cJSON
-    // node = DA_GET(FileTreeNode *, &(node->children), 0); // ./extern/cJSON/include
-    // node->collapsed = 1;
-    /** DEBUG **/
+    // Run TUI
+    if (run_tui(file_tree) != 0) {
+        fprintf(stderr, "Error: Failed in TUI.\n");
+        close_io(input, output);
+        free(file_tree);
+        return 1;
+    }
 
     // Draw tree
     if (draw_tree(file_tree, output) != 0) {
         fprintf(stderr, "Error: Failed to draw file tree.\n");
         close_io(input, output);
+        free(file_tree);
         return 1;
     }
 

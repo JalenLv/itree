@@ -11,8 +11,14 @@ char *concat_NULL(const char *str1, ...);
 /**
  * Dynamic array macros.
  */
-// Init a dynamic array pointer
-#define DA_INIT(type) (type *){0}
+#include <stdlib.h>
+#include <string.h>
+// Define the fields of a dynamic array for a given type
+// Usage: typedef struct { DA_FIELDS(int); } IntArray;
+#define DA_FIELDS(type) \
+	int count; \
+	int capacity; \
+	type *items
 // Push an item to the dynamic array
 #define DA_PUSH(type, arr, item) do { \
 	if ((arr)->count == (arr)->capacity) { \
@@ -24,6 +30,107 @@ char *concat_NULL(const char *str1, ...);
 // Pop an item from the dynamic array
 #define DA_POP(type, arr) ((arr)->count > 0 ? (type)(arr)->items[--(arr)->count] : NULL)
 // Get an item from the dynamic array by index
-#define DA_GET(type, arr, index) ((index) < (arr)->count ? (type)(arr)->items[index] : NULL)
+#define DA_GET(type, arr, index) (((index) < (arr)->count && (index) >= 0) ? (type)(arr)->items[index] : NULL)
+// Remove an item from the dynamic array by index
+#define DA_REMOVE(type, arr, index) do { \
+	if ((index) < (arr)->count && (index) >= 0) { \
+		memmove(&(arr)->items[index], &(arr)->items[index + 1], ((arr)->count - (index) - 1) * sizeof(type)); \
+		(arr)->count--; \
+	} \
+} while(0)
+// Remove a range of items from the dynamic array [start, end)
+#define DA_REMOVE_RANGE(type, arr, start, end) do { \
+	if ((start) >= 0 && (end) <= (arr)->count && (start) < (end)) { \
+		memmove(&(arr)->items[start], &(arr)->items[end], ((arr)->count - (end)) * sizeof(type)); \
+		(arr)->count -= ((end) - (start)); \
+	} \
+} while(0)
+// Insert a DA `arr2insert` into another DA `arr` at a given index
+#define DA_INSERT(type, arr, index, arr2insert) do { \
+	if ((arr2insert)->count > 0 && (index) >= 0 && (index) <= (arr)->count) { \
+		while ((arr)->count + (arr2insert)->count > (arr)->capacity) { \
+			(arr)->capacity = (arr)->capacity ? (arr)->capacity * 2 : 1; \
+			(arr)->items = (type *)realloc((arr)->items, (arr)->capacity * sizeof(type)); \
+		} \
+		memmove(&(arr)->items[(index) + (arr2insert)->count], &(arr)->items[index], ((arr)->count - (index)) * sizeof(type)); \
+		memcpy(&(arr)->items[index], (arr2insert)->items, (arr2insert)->count * sizeof(type)); \
+		(arr)->count += (arr2insert)->count; \
+	} \
+} while(0)
+
+/**
+ * Dynamic deque macros.
+ */
+// Define the fields of a dynamic deque for a given type
+// Usage: typedef struct { DQ_FIELDS(int); } IntDeque;
+#define DQ_FIELDS(T) \
+	T *items;		 \
+	size_t head;		 \
+	size_t count;		 \
+	size_t capacity
+// Resize and reorganize the deque when full
+#define DQ_RESIZE(T, deque) do { \
+	size_t new_capacity = (deque)->capacity ? (deque)->capacity * 2 : 8; \
+	T *new_items = (T *)malloc(new_capacity * sizeof(T)); \
+	if ((deque)->count > 0) { \
+		size_t tail = ((deque)->head + (deque)->count) % (deque)->capacity; \
+		if ((deque)->head < tail) { \
+			memcpy(new_items, (deque)->items + (deque)->head, (deque)->count * sizeof(T)); \
+		} else { \
+			size_t first_part = (deque)->capacity - (deque)->head; \
+			memcpy(new_items, (deque)->items + (deque)->head, first_part * sizeof(T)); \
+			memcpy(new_items + first_part, (deque)->items, tail * sizeof(T)); \
+		} \
+	} \
+	free((deque)->items); \
+	(deque)->items = new_items; \
+	(deque)->capacity = new_capacity; \
+	(deque)->head = 0; \
+} while(0)
+// Push an item to the back of the deque
+#define DQ_PUSH_BACK(T, deque, item) do { \
+	if ((deque)->count == (deque)->capacity) { \
+		DQ_RESIZE(T, deque); \
+	} \
+	size_t tail = ((deque)->head + (deque)->count) % (deque)->capacity; \
+	(deque)->items[tail] = item; \
+	(deque)->count++; \
+} while(0)
+// Push an item to the front of the deque
+#define DQ_PUSH_FRONT(T, deque, item) do { \
+	if ((deque)->count == (deque)->capacity) { \
+		DQ_RESIZE(T, deque); \
+	} \
+	(deque)->head = ((deque)->head - 1 + (deque)->capacity) % (deque)->capacity; \
+	(deque)->items[(deque)->head] = item; \
+	(deque)->count++; \
+} while(0)
+// Pop an item from the back of the deque
+#define DQ_POP_BACK(T, deque) \
+	((deque)->count > 0 ? \
+		((deque)->count--, \
+		 (deque)->items[((deque)->head + (deque)->count) % (deque)->capacity]) \
+		: (T){0})
+// Pop an item from the front of the deque
+#define DQ_POP_FRONT(T, deque) \
+	((deque)->count > 0 ? \
+		((deque)->count--, \
+		 (deque)->items[(deque)->head], \
+		 (deque)->head = ((deque)->head + 1) % (deque)->capacity, \
+		 (deque)->items[((deque)->head - 1 + (deque)->capacity) % (deque)->capacity]) \
+		: (T){0})
+// Get an item from the deque by index
+#define DQ_GET(T, deque, index) \
+	(((index) < (deque)->count && (index) >= 0) ? \
+		(T)(deque)->items[((deque)->head + (index)) % (deque)->capacity] : (T){0})
+// Get the front item of the deque
+#define DQ_FRONT(T, deque) DQ_GET(T, deque, 0)
+// Get the back item of the deque
+#define DQ_BACK(T, deque) DQ_GET(T, deque, (deque)->count - 1)
+
+// Minimum of two values
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+// Maximum of two values
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #endif // HELPERS_H
