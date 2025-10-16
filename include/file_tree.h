@@ -10,7 +10,8 @@
 
 typedef enum NodeType {
     FILE_NODE,
-    DIRECTORY_NODE
+    DIRECTORY_NODE,
+    LINK_NODE
 } NodeType;
 
 typedef struct FileTreeNode FileTreeNode;
@@ -23,9 +24,9 @@ typedef struct FileTreeNode {
     NodeType type;
     char *name;
     Children children;
-    FileTreeNode *parent;
     int collapsed; // 0 for expanded, 1 for collapsed; expanded by default
     int depth; // depth in the tree, root is 0
+    char *target; // target path if it's a link; NULL otherwise
 } FileTreeNode;
 
 /**

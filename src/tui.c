@@ -211,8 +211,8 @@ int draw_visible_entries(AppState *app_state) {
 
         // Display node name with prefix and suffix
         char *prefix = (node->type == DIRECTORY_NODE) ? (node->collapsed ? "  > " : "  v ") : "    ";
-        char *suffix = (node->type == DIRECTORY_NODE) ? "/" : "";
-        printw("%s%s%s\n", prefix, node->name, suffix);
+        char *suffix = (node->type == DIRECTORY_NODE) ? "/" : (node->type == LINK_NODE ? " -> " : "");
+        printw("%s%s%s%s\n", prefix, node->name, suffix, (node->type == LINK_NODE ? node->target : ""));
 
         if (entry_index == app_state->selected_entry) {
             attroff(A_STANDOUT);

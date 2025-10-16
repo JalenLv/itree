@@ -20,6 +20,8 @@ int draw_node_recursive(FileTreeNode *sub_file_tree, FILE *output, char *prefix,
     char *suffix = NULL;
     if (type == FILE_NODE) {
         suffix = "";
+    } else if (type == LINK_NODE) {
+        suffix = " -> ";
     } else if (type == DIRECTORY_NODE) {
         suffix = "/";
     } else {
@@ -27,8 +29,9 @@ int draw_node_recursive(FileTreeNode *sub_file_tree, FILE *output, char *prefix,
         return 1;
     }
 
-    fprintf(output, "%s%s%s%s\n",
-            prefix, (is_root ? "" : (is_last ? TREE_LAST : TREE_BRANCH)), name, suffix);
+    fprintf(output, "%s%s%s%s%s\n",
+            prefix, (is_root ? "" : (is_last ? TREE_LAST : TREE_BRANCH)),
+            name, suffix, (type == LINK_NODE ? sub_file_tree->target : ""));
 
     // If it's a directory and not collapsed, print its children
     if ((type == DIRECTORY_NODE) && (!sub_file_tree->collapsed)) {

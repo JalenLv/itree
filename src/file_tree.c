@@ -62,6 +62,8 @@ FileTreeNode *create_tree_from_cjson_recursive(cJSON *file_tree_json, int depth)
         node->type = FILE_NODE;
     } else if (strcmp(type_str, "directory") == 0) {
         node->type = DIRECTORY_NODE;
+    } else if (strcmp(type_str, "link") == 0) {
+        node->type = LINK_NODE;
     } else {
         free(node);
         return NULL;
@@ -77,13 +79,23 @@ FileTreeNode *create_tree_from_cjson_recursive(cJSON *file_tree_json, int depth)
     node->children = (Children){0};
     node->collapsed = 0;
     node->depth = depth;
+    // TODO: handle strdup(NULL) if it breaks anything
+    node->target = (node->type == LINK_NODE) ?
+        strdup(
+            cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(file_tree_json, "target"))
+        ) : NULL;
     cJSON *child = NULL;
-    cJSON *children = cJSON_GetObjectItemCaseSensitive(file_tree_json, "contents");
+    cJSON *children =
+        cJSON_GetObjectItemCaseSensitive(file_tree_json, "contents");
+    if (cJSON_GetObjectItemCaseSensitive(cJSON_GetArrayItem(children, 0), "error") != NULL) {
+        return NULL;
+    }
     cJSON_ArrayForEach(child, children) {
         FileTreeNode *child_node = create_tree_from_cjson_recursive(child, depth + 1);
         if (child_node != NULL) {
             DA_PUSH(FileTreeNode *, &(node->children), child_node);
         } else {
+            // TODO: clean up
             // Clean up should be done from top to bottom,
             // i.e., the `free` function should recursively
             // do the clean up for the root.
@@ -101,29 +113,6 @@ FileTreeNode *create_tree_from_cjson(cJSON *file_tree_json) {
         return NULL;
     }
 
-    FileTreeNode *root = malloc(sizeof(FileTreeNode));
-    if (root == NULL) {
-        return NULL;
-    }
-    root->type = DIRECTORY_NODE;
-    root->name = strdup(".");
-    root->children = (Children){0};
-    root->collapsed = 0;
-    root->depth = 0;
-    // Recursively build the tree
-    cJSON *child = NULL;
-    cJSON *children = cJSON_GetObjectItemCaseSensitive(real_file_tree_json, "contents");
-    cJSON_ArrayForEach(child, children) {
-        FileTreeNode *child_node = create_tree_from_cjson_recursive(child, 1);
-        if (child_node != NULL) {
-            // Add child_node to root's children
-            DA_PUSH(FileTreeNode *, &(root->children), child_node);
-        } else {
-            // TODO: implement a proper free function for the tree
-            free(root);
-            return NULL;
-        }
-    }
-
+    FileTreeNode *root = create_tree_from_cjson_recursive(real_file_tree_json, 0);
     return root;
 }
