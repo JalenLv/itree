@@ -75,7 +75,7 @@ FileTreeNode *create_tree_from_cjson_recursive(cJSON *file_tree_json, int depth)
     }
     node->name = strdup(name_str);
     node->children = (Children){0};
-    node->collapsed = (node->type == DIRECTORY_NODE) ? 0 : NULL;
+    node->collapsed = 0;
     node->depth = depth;
     cJSON *child = NULL;
     cJSON *children = cJSON_GetObjectItemCaseSensitive(file_tree_json, "contents");
