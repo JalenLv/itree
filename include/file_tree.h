@@ -33,4 +33,28 @@ typedef struct FileTreeNode {
  */
 int create_file_tree_from_path(FileTree *file_tree, const char *path);
 
+/**
+ * Given a file tree and a visible node index, returns the next visible index.
+ * Skips over collapsed directories.
+ * 
+ * Returns the next visible index.
+ * Returns 0 if the given index is the last visible index. (Because 0 is always the first visible index)
+ * Returns -1 if the given index is invalid.
+ * 
+ * Behavor is undefined if the given index is not visible.
+ */
+int next(FileTree *file_tree, int idx);
+
+/**
+ * Given a file tree and a visible node index, returns the previous visible index.
+ * Skips over collapsed directories.
+ * 
+ * Returns the previous visible index.
+ * Returns the last visible index if the given index is 0. (Because 0 is always the first visible index)
+ * Returns -1 if the given index is invalid.
+ * 
+ * Behavor is undefined if the given index is not visible.
+ */
+int prev(FileTree *file_tree, int idx);
+
 #endif // FILE_TREE_H

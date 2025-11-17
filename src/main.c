@@ -27,12 +27,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // // Run TUI
-    // if (run_tui(&file_tree) != 0) {
-    //     fprintf(stderr, "Error: Failed in TUI.\n");
-    //     DA_FREE(FileTree, &file_tree);
-    //     return 1;
-    // }
+    // Run TUI
+    if (run_tui(&file_tree) != 0) {
+        fprintf(stderr, "Error: Failed in TUI.\n");
+        DA_FREE(FileTree, &file_tree);
+        return 1;
+    }
 
     // Open output file
     FILE *output = NULL;

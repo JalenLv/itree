@@ -5,7 +5,77 @@
 #include "tui.h"
 #include "helpers.h"
 
-int run_tui(FileTreeNode *root) {
+void update_tail_given_head(AppState *app_state, FileTree *file_tree) {
+    int vis_ent_cnt = 0;
+    int i = app_state->visible_entries_head, next_i;
+    while ((next_i = next(file_tree, i)) != 0) {
+        if (++vis_ent_cnt >= LINES) break;
+        i = next_i;
+    }
+    app_state->visible_entries_tail = i;
+}
+
+void update_head_given_tail(AppState *app_state, FileTree *file_tree) {
+    int vis_ent_cnt = 0;
+    int i = app_state->visible_entries_tail;
+    while (i != 0) {
+        if (++vis_ent_cnt >= LINES) break;
+        i = prev(file_tree, i);
+    }
+    app_state->visible_entries_head = i;
+}
+
+int init_app_state(AppState *app_state, FileTree *file_tree) {
+    // Init all entries
+    app_state->all_entries = file_tree;
+
+    // Init visible related fields
+    app_state->visible_entries_head = 0;
+    app_state->selected_entry = 0;
+    update_tail_given_head(app_state, file_tree);
+
+    return 0;
+}
+
+int draw_visible_entries(AppState *app_state) {
+    clear();
+
+    // Draw each visible entry
+    int row = 0;
+    int i = app_state->visible_entries_head;
+    do {
+        // Do the drawing
+        FileTreeNode *node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
+        // Highlight the selected entry
+        if (i == app_state->selected_entry) {
+            attron(A_STANDOUT);
+            mvprintw(row, 0, "->");
+        } else {
+            mvprintw(row, 0, "  ");
+        }
+        // Indentation based on depth
+        for (int d = 0; d < node->depth; ++d) {
+            printw("    ");
+        }
+        // Display node name with prefix and suffix
+        char *prefix = (node->type == DIRECTORY_NODE) ? (node->collapsed ? "  > " : "  v ") : "    ";
+        char *suffix = (node->type == DIRECTORY_NODE) ? "/" : (node->type == LINK_NODE ? " -> " : "");
+        printw("%s%s%s%s\n", prefix, node->name, suffix, (node->type == LINK_NODE ? node->target : ""));
+        // Turn off highlight if needed
+        if (i == app_state->selected_entry) {
+            attroff(A_STANDOUT);
+        }
+        row++;
+
+        // Update i
+        i = next(app_state->all_entries, i);
+    } while (i != 0 && i <= app_state->visible_entries_tail);
+
+    refresh();
+    return 0;
+}
+
+int run_tui(FileTree *file_tree) {
     // Init curses
     // When input is piped, stdin is not connected to the terminal.
     // We need to open /dev/tty directly for keyboard input.
@@ -29,13 +99,13 @@ int run_tui(FileTreeNode *root) {
     keypad(stdscr, TRUE);
     cbreak();
     noecho();
-    nodelay(stdscr, FALSE); // Blocking input
-    curs_set(0); // Hide cursor
-    intrflush(stdscr, FALSE); // Don't flush on interrupt keys
-    scrollok(stdscr, FALSE); // Disable scrolling
+    nodelay(stdscr, FALSE);     // Blocking input
+    curs_set(0);                // Hide cursor
+    intrflush(stdscr, FALSE);   // Don't flush on interrupt keys
+    scrollok(stdscr, FALSE);    // Disable scrolling
 
     AppState app_state = {0};
-    if (init_app_state(&app_state, root) != 0) {
+    if (init_app_state(&app_state, file_tree) != 0) {
         fprintf(stderr, "Error: Failed to initialize application state.\n");
         return 1;
     }
@@ -51,100 +121,79 @@ int run_tui(FileTreeNode *root) {
         switch (ch) {
             case KEY_DOWN:
             case 'j':
-                if (app_state.all_entries.count <= LINES) {
-                    // Loop back to top if at the end
-                    if (app_state.selected_entry + 1 < app_state.all_entries.count) {
-                        app_state.selected_entry++;
-                    } else {
-                        app_state.selected_entry = 0;
-                    }
+                if (app_state.visible_entries_head == 0 && next(file_tree, app_state.visible_entries_tail) == 0) {
+                    // If the window shows all entries
+                    app_state.selected_entry = next(file_tree, app_state.selected_entry);
                 } else {
-                    if (app_state.selected_entry == app_state.visible_entries_head + app_state.visible_entries_count - 1) {
-                        if (app_state.selected_entry == app_state.all_entries.count - 1) {
-                            // Loop back to top
-                            app_state.selected_entry = 0;
-                            app_state.visible_entries_head = 0;
+                    // If the window shows a subset of entries
+                    if (app_state.selected_entry == app_state.visible_entries_tail) {
+                        // Slide window down
+                        if (next(file_tree, app_state.visible_entries_tail) != 0) {
+                            // If not at the end
+                            app_state.visible_entries_head = next(file_tree, app_state.visible_entries_head);
+                            app_state.visible_entries_tail = next(file_tree, app_state.visible_entries_tail);
+                            app_state.selected_entry = app_state.visible_entries_tail;  
                         } else {
-                            // Slide window down
-                            app_state.selected_entry++;
-                            app_state.visible_entries_head++;
+                            // At the end, loop back to top
+                            init_app_state(&app_state, file_tree);
                         }
                     } else {
-                        app_state.selected_entry++;
+                        // Move selection down
+                        app_state.selected_entry = next(file_tree, app_state.selected_entry);
                     }
                 }
                 break;
             case KEY_UP:
             case 'k':
-                if (app_state.all_entries.count <= LINES) {
-                    // Loop back to bottom if at the top
-                    if (app_state.selected_entry > 0) {
-                        app_state.selected_entry--;
-                    } else {
-                        app_state.selected_entry = app_state.all_entries.count - 1;
-                    }
+                if (app_state.visible_entries_head == 0 && next(file_tree, app_state.visible_entries_tail) == 0) {
+                    // If the window shows all entries
+                    app_state.selected_entry = prev(file_tree, app_state.selected_entry);
                 } else {
+                    // If the window shows a subset of entries
                     if (app_state.selected_entry == app_state.visible_entries_head) {
-                        if (app_state.selected_entry == 0) {
-                            // Loop back to bottom
-                            app_state.selected_entry = app_state.all_entries.count - 1;
-                            app_state.visible_entries_head = app_state.all_entries.count - app_state.visible_entries_count;
+                        // Slide window up
+                        if (app_state.visible_entries_head != 0) {
+                            // If not at the start
+                            app_state.visible_entries_tail = prev(file_tree, app_state.visible_entries_tail);
+                            app_state.visible_entries_head = prev(file_tree, app_state.visible_entries_head);
+                            app_state.selected_entry = app_state.visible_entries_head;  
                         } else {
-                            // Slide window up
-                            app_state.selected_entry--;
-                            app_state.visible_entries_head--;
+                            // At the start, go to bottom
+                            app_state.visible_entries_tail = prev(file_tree, 0);
+                            app_state.selected_entry = app_state.visible_entries_tail;
+                            update_head_given_tail(&app_state, file_tree);
                         }
                     } else {
-                        app_state.selected_entry--;
+                        // Move selection up
+                        app_state.selected_entry = prev(file_tree, app_state.selected_entry);
                     }
                 }
                 break;
             case KEY_LEFT:
             case 'h': // Collapse directory
-                FileTreeNode *current_node = DA_GET(FileTreeNode *, &(app_state.all_entries), app_state.selected_entry);
+                FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state.all_entries, app_state.selected_entry);
                 if (current_node->type == DIRECTORY_NODE && !current_node->collapsed) {
                     current_node->collapsed = 1;
-                    // Update all_entries
-                    int i = app_state.selected_entry + 1;
-                    while (i < app_state.all_entries.count) {
-                        FileTreeNode *node = DA_GET(FileTreeNode *, &(app_state.all_entries), i);
-                        if (node->depth <= current_node->depth) {
-                            break;
-                        }
-                        i++;
-                    }
-                    DA_REMOVE_RANGE(FileTreeNode *, &(app_state.all_entries), app_state.selected_entry + 1, i);
                     // Update visible fields
-                    app_state.visible_entries_count = MIN(app_state.all_entries.count, LINES);
-                    if (app_state.all_entries.count <= LINES) {
-                        app_state.visible_entries_head = 0;
-                    } else {
-                        app_state.visible_entries_head = MIN(app_state.visible_entries_head, app_state.all_entries.count - app_state.visible_entries_count);
-                    }
+                    update_tail_given_head(&app_state, file_tree);
                 }
                 break;
             case KEY_RIGHT:
             case 'l': // Expand directory
-                current_node = DA_GET(FileTreeNode *, &(app_state.all_entries), app_state.selected_entry);
+                current_node = DA_GET_PTR(FileTreeNode *, app_state.all_entries, app_state.selected_entry);
                 if (current_node->type == DIRECTORY_NODE && current_node->collapsed) {
                     current_node->collapsed = 0;
-                    // Search children rooted at current_node to insert
-                    Entries new_entries = {0};
-                    init_all_entries_recursive(&new_entries, current_node);
-                    DA_REMOVE(FileTreeNode *, &new_entries, 0); // Remove the current_node itself
-                    // Insert new entries into all_entries
-                    DA_INSERT(FileTreeNode *, &(app_state.all_entries), app_state.selected_entry + 1, &new_entries);
                     // Update visible fields
-                    app_state.visible_entries_count = MIN(app_state.all_entries.count, LINES);
+                    update_tail_given_head(&app_state, file_tree);
                 }
                 break;
             case 'g': // Go to top
-                app_state.selected_entry = 0;
-                app_state.visible_entries_head = 0;
+                init_app_state(&app_state, file_tree);
                 break;
             case 'G': // Go to bottom
-                app_state.selected_entry = app_state.all_entries.count - 1;
-                app_state.visible_entries_head = MAX(0, app_state.all_entries.count - app_state.visible_entries_count);
+                app_state.visible_entries_tail = prev(file_tree, 0);
+                app_state.selected_entry = app_state.visible_entries_tail;
+                update_head_given_tail(&app_state, file_tree);
                 break;
             default:
                 break;
@@ -158,67 +207,5 @@ int run_tui(FileTreeNode *root) {
     endwin();
     delscreen(screen);
     fclose(tty_input);
-    return 0;
-}
-
-int init_all_entries_recursive(Entries *entries, FileTreeNode *node) {
-    // Add the current node
-    DA_PUSH(FileTreeNode *, entries, node);
-
-    // Add any child if it's a directory and not collapsed
-    if (node->type == DIRECTORY_NODE && !node->collapsed) {
-        for (int i = 0; i < node->children.count; ++i) {
-            FileTreeNode *child = DA_GET(FileTreeNode *, &(node->children), i);
-            init_all_entries_recursive(entries, child);
-        }
-    }
-
-    return 0;
-}
-
-int init_app_state(AppState *app_state, FileTreeNode *root) {
-    // Init all entries
-    init_all_entries_recursive(&(app_state->all_entries), root);
-    
-    // Init visible related fields
-    app_state->visible_entries_head = 0;
-    app_state->visible_entries_count = MIN(app_state->all_entries.count, LINES);
-    app_state->selected_entry = app_state->visible_entries_head;
-
-    return 0;
-}
-
-int draw_visible_entries(AppState *app_state) {
-    clear();
-
-    // Draw each visible entry
-    for (int row = 0; row < app_state->visible_entries_count; ++row) {
-        size_t entry_index = app_state->visible_entries_head + row;
-        FileTreeNode *node = DA_GET(FileTreeNode *, &(app_state->all_entries), entry_index);
-
-        // Highlight the selected entry
-        if (entry_index == app_state->selected_entry) {
-            attron(A_STANDOUT);
-            printw("->");
-        } else {
-            printw("  ");
-        }
-
-        // Indentation based on depth
-        for (int d = 0; d < node->depth; ++d) {
-            printw("    ");
-        }
-
-        // Display node name with prefix and suffix
-        char *prefix = (node->type == DIRECTORY_NODE) ? (node->collapsed ? "  > " : "  v ") : "    ";
-        char *suffix = (node->type == DIRECTORY_NODE) ? "/" : (node->type == LINK_NODE ? " -> " : "");
-        printw("%s%s%s%s\n", prefix, node->name, suffix, (node->type == LINK_NODE ? node->target : ""));
-
-        if (entry_index == app_state->selected_entry) {
-            attroff(A_STANDOUT);
-        }
-    }
-
-    refresh();
     return 0;
 }

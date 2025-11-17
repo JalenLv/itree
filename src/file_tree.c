@@ -105,3 +105,65 @@ int create_file_tree_from_path(FileTree *file_tree, const char *path) {
 
     return 0;
 }
+
+int next(FileTree *file_tree, int idx) {
+    FileTreeNode *node = DA_GET_PTR(FileTreeNode *, file_tree, idx);
+    if (node == NULL) {
+        return -1;
+    }
+
+    // If the node is a file or a link, return the next index
+    if (node->type == FILE_NODE || node->type == LINK_NODE) {
+        return (idx + 1 < file_tree->count) ? idx + 1 : 0;
+    }
+
+    // If the node is a directory and expanded, return the next index
+    if (node->type == DIRECTORY_NODE && node->collapsed == 0) {
+        return (idx + 1 < file_tree->count) ? idx + 1 : 0;
+    }
+
+    // If the node is a directory and collapsed, skip its children
+    int depth = node->depth;
+    for (int i = idx + 1; i < file_tree->count; i++) {
+        FileTreeNode *next_node = DA_GET_PTR(FileTreeNode *, file_tree, i);
+        if (next_node->depth <= depth) {
+            return i;
+        }
+    }
+
+    return 0;
+}
+
+int prev(FileTree *file_tree, int idx) {
+    FileTreeNode *node = DA_GET_PTR(FileTreeNode *, file_tree, idx);
+    if (node == NULL) {
+        return -1;
+    }
+
+    if (idx == 0) {
+        while (next(file_tree, idx) != 0) {
+            idx = next(file_tree, idx);
+        }
+        return idx;
+    }
+
+    int depth = node->depth;
+    if (DA_GET(FileTreeNode, file_tree, idx - 1).depth <= depth) {
+        // If the previous node is at the same or shallower depth, return it
+        return idx - 1;
+    } else {
+        // Otherwise, find the closest ancestor and infer from its state
+        for (int i = idx - 1; i >= 0; i--) {
+            FileTreeNode *prev_node = DA_GET_PTR(FileTreeNode *, file_tree, i);
+            if (prev_node->depth == depth) {
+                if (prev_node->collapsed) {
+                    return i;
+                } else {
+                    return idx - 1;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
