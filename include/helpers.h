@@ -19,6 +19,16 @@ char *concat_NULL(const char *str1, ...);
 	int count; \
 	int capacity; \
 	type *items
+// Free the dynamic array
+// Use this only when the elements do not need to be freed individually
+#define DA_FREE(type, arr) do { \
+	if ((arr)->items != NULL) { \
+		free((arr)->items); \
+		(arr)->items = NULL; \
+		(arr)->count = 0; \
+		(arr)->capacity = 0; \
+	} \
+} while(0)
 // Push an item to the dynamic array
 #define DA_PUSH(type, arr, item) do { \
 	if ((arr)->count == (arr)->capacity) { \
@@ -128,9 +138,18 @@ char *concat_NULL(const char *str1, ...);
 // Get the back item of the deque
 #define DQ_BACK(T, deque) DQ_GET(T, deque, (deque)->count - 1)
 
-// Minimum of two values
+/** 
+ * Minumum and Maximum macros
+ */
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-// Maximum of two values
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+/**
+ * Open and close IO streams
+ */
+#include "argparse.h"
+#include <stdio.h>
+int open_io(Args *args, FILE **output);
+void close_io(FILE *output);
 
 #endif // HELPERS_H

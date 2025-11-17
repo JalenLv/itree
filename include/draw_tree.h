@@ -7,6 +7,6 @@
 /**
  * Draws the file tree to the given output file.
  */
-int draw_tree(FileTreeNode *file_tree, FILE *output);
+int draw_tree(FileTree *file_tree, FILE *output);
 
 #endif // DRAW_TREE_H

@@ -9,7 +9,7 @@
  * show_help:   Flag to indicate if help message should be shown.
  */
 typedef struct {
-    char *input_file;
+    char *path;
     char *output_file;
     int show_help;
 } Args;

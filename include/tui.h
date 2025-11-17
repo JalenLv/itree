@@ -5,27 +5,17 @@
 #include "helpers.h"
 
 typedef struct {
-    DA_FIELDS(FileTreeNode *);
-} Entries;
+    FileTree all_entries;           // All file tree entries
 
-typedef struct AppState {
-    Entries all_entries;
-
-    size_t visible_entries_head;
-    size_t visible_entries_count;
-    size_t selected_entry; // Line number of the selected entry
+    size_t visible_entries_head;    // Index of the first visible entry
+    size_t visible_entries_count;   // Number of visible entries
+    size_t selected_entry;          // Line number of the selected entry
 } AppState;
 
 /**
  * Enters the TUI mode with the given file tree root.
  * Returns 0 on success, non-zero on failure.
  */
-int run_tui(FileTreeNode *root);
-
-int init_app_state(AppState *app_state, FileTreeNode *root);
-
-int init_all_entries_recursive(Entries *entries, FileTreeNode *node);
-
-int draw_visible_entries(AppState *app_state);
+int run_tui(FileTree *file_tree);
 
 #endif // TUI_H
