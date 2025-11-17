@@ -1,5 +1,4 @@
-#include <stdlib.h>
-#include <string.h>
+#include "helpers.h"
 #include <stdarg.h>
 
 char *concat_NULL(const char *str1, ...)
@@ -31,4 +30,20 @@ char *concat_NULL(const char *str1, ...)
     va_end(args);
 
     return result;
+}
+
+int open_io(Args *args, FILE **output) {
+    *output = stdout;
+    if (args->output_file != NULL) {
+        *output = fopen(args->output_file, "w");
+        if (*output == NULL) {
+            fprintf(stderr, "Error: Cannot open output file: %s\n", args->output_file);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void close_io(FILE *output) {
+    if (output != stdout) fclose(output);
 }
