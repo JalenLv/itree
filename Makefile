@@ -21,26 +21,23 @@ run: build
 main.o: $(SRC_DIR)/main.c
 	gcc $(CFLAGS) -c $(SRC_DIR)/main.c -o main.o
 
-# cJSON.o: $(CJSON_SRC)
-# 	gcc $(CFLAGS) -c $(CJSON_SRC) -I$(CJSON_INC_DIR) -o cJSON.o
+argparse.o: $(SRC_DIR)/argparse.c
+	gcc $(CFLAGS) -c $(SRC_DIR)/argparse.c -o argparse.o
 
-# argparse.o: $(SRC_DIR)/argparse.c
-# 	gcc $(CFLAGS) -c $(SRC_DIR)/argparse.c -I$(INCLUDE_DIR) -o argparse.o
+file_tree.o: $(SRC_DIR)/file_tree.c
+	gcc $(CFLAGS) -c $(SRC_DIR)/file_tree.c -o file_tree.o
 
-# file_tree.o: $(SRC_DIR)/file_tree.c
-# 	gcc $(CFLAGS) -c $(SRC_DIR)/file_tree.c -I$(INCLUDE_DIR) -I$(CJSON_INC_DIR) -o file_tree.o
+helpers.o: $(SRC_DIR)/helpers.c
+	gcc $(CFLAGS) -c $(SRC_DIR)/helpers.c -o helpers.o
 
-# helpers.o: $(SRC_DIR)/helpers.c
-# 	gcc $(CFLAGS) -c $(SRC_DIR)/helpers.c -o helpers.o
-
-# draw_tree.o: $(SRC_DIR)/draw_tree.c
-# 	gcc $(CFLAGS) -c $(SRC_DIR)/draw_tree.c -I$(INCLUDE_DIR) -I$(CJSON_INC_DIR) -o draw_tree.o
+draw_tree.o: $(SRC_DIR)/draw_tree.c
+	gcc $(CFLAGS) -c $(SRC_DIR)/draw_tree.c -o draw_tree.o
 
 # tui.o: $(SRC_DIR)/tui.c
-# 	gcc $(CFLAGS) -c $(SRC_DIR)/tui.c -I$(INCLUDE_DIR) -I$(CJSON_INC_DIR) -o tui.o
+# 	gcc $(CFLAGS) -c $(SRC_DIR)/tui.c -o tui.o
 
-# itree: main.o cJSON.o argparse.o file_tree.o helpers.o draw_tree.o tui.o
-# 	gcc main.o cJSON.o argparse.o file_tree.o helpers.o draw_tree.o tui.o -o itree -lncurses
+# itree: main.o argparse.o file_tree.o helpers.o draw_tree.o tui.o
+# 	gcc main.o argparse.o file_tree.o helpers.o draw_tree.o tui.o -o itree -lncurses
 
-itree: main.o
-# 	gcc main.o helpers.o -o itree -lncurses
+itree: main.o argparse.o file_tree.o helpers.o draw_tree.o
+	gcc main.o argparse.o file_tree.o helpers.o draw_tree.o -o itree

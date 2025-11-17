@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "draw_tree.h"
@@ -9,52 +11,76 @@
 #define TREE_VERT   "│   "
 #define TREE_SPACE  "    "
 
-/**
- * Recursively draws the sub file tree.
- */
-int draw_node_recursive(FileTreeNode *sub_file_tree, FILE *output, char *prefix, int is_last, int is_root) {
-    // Print the current node
-    NodeType type = sub_file_tree->type;
-    char *name = sub_file_tree->name;
+int draw_tree(FileTree *file_tree, FILE *output) {
+	int max_depth = 0;
+	for (int i = 0; i < file_tree->count; ++i) {
+		if (file_tree->items[i].depth > max_depth) {
+			max_depth = file_tree->items[i].depth;
+		}
+	}
 
-    char *suffix = NULL;
-    if (type == FILE_NODE) {
-        suffix = "";
-    } else if (type == LINK_NODE) {
-        suffix = " -> ";
-    } else if (type == DIRECTORY_NODE) {
-        suffix = "/";
-    } else {
-        fprintf(stderr, "Unknown type\n");
-        return 1;
-    }
+	// Track whether an ancestor at each depth still has siblings to print pipes accordingly
+	int *ancestor_last = calloc((size_t)max_depth + 1, sizeof(int));
+	if (ancestor_last == NULL) {
+		perror("calloc");
+		return 1;
+	}
 
-    fprintf(output, "%s%s%s%s%s\n",
-            prefix, (is_root ? "" : (is_last ? TREE_LAST : TREE_BRANCH)),
-            name, suffix, (type == LINK_NODE ? sub_file_tree->target : ""));
+	int collapsed_depth = -1;
 
-    // If it's a directory and not collapsed, print its children
-    if ((type == DIRECTORY_NODE) && (!sub_file_tree->collapsed)) {
-        int n_children = sub_file_tree->children.count;
-        for (int i = 0; i < n_children; i++) {
-            // FileTreeNode *child = sub_file_tree->children.items[i];
-            FileTreeNode *child = DA_GET(FileTreeNode *, &(sub_file_tree->children), i);
-            char *new_prefix = is_root ? prefix : concat(prefix, is_last ? strdup(TREE_SPACE) : strdup(TREE_VERT));
-            int new_is_last = (i == n_children - 1);
-            draw_node_recursive(child, output, new_prefix, new_is_last, 0);
-        }
-    }
+	for (int i = 0; i < file_tree->count; ++i) {
+		FileTreeNode *node = &file_tree->items[i];
+		int depth = node->depth;
 
-    return 0;
-}
+		if (collapsed_depth != -1) {
+			if (depth <= collapsed_depth) {
+				collapsed_depth = -1;
+			} else {
+				continue;
+			}
+		}
 
-int draw_tree(FileTreeNode *file_tree, FILE *output) {
-    char *prefix = strdup("");
-    int is_last = 1; // Root is always the last node at its level
-    if (draw_node_recursive(file_tree, output, prefix, is_last, 1) != 0) {
-        fprintf(stderr, "Error: Failed to draw some node.\n");
-        return 1;
-    }
+		int is_last = 1;
+		for (int j = i + 1; j < file_tree->count; ++j) {
+			int next_depth = file_tree->items[j].depth;
+			if (next_depth < depth) {
+				break;
+			}
+			if (next_depth == depth) {
+				is_last = 0;
+				break;
+			}
+		}
 
-    return 0;
+		for (int level = 1; level < depth; ++level) {
+			fputs(ancestor_last[level] ? TREE_SPACE : TREE_VERT, output);
+		}
+		if (depth > 0) {
+			fputs(is_last ? TREE_LAST : TREE_BRANCH, output);
+		}
+
+		switch (node->type) {
+			case FILE_NODE:
+				fprintf(output, "%s\n", node->name);
+				break;
+			case DIRECTORY_NODE:
+				fprintf(output, "%s/\n", node->name);
+				break;
+			case LINK_NODE:
+				fprintf(output, "%s -> %s\n", node->name, node->target);
+				break;
+			default:
+				free(ancestor_last);
+				fprintf(stderr, "Error: Unknown node type encountered.\n");
+				return 1;
+		}
+
+		ancestor_last[depth] = is_last;
+		if (node->type == DIRECTORY_NODE && node->collapsed) {
+			collapsed_depth = depth;
+		}
+	}
+
+	free(ancestor_last);
+	return 0;
 }

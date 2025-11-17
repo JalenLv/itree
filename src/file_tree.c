@@ -1,118 +1,107 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "cJSON.h"
 #include "file_tree.h"
-#include "helpers.h"
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-FileTreeNode *create_file_tree(FILE *input) {
-    // Read and parse JSON
-    cJSON *file_tree_json = parse_json(input);
-    if (file_tree_json == NULL) {
-        fprintf(stderr, "Error: Failed to parse JSON input.\n");
-        return NULL;
+int walk(FileTree *file_tree, const char *path, int depth) {
+    DIR *d = opendir(path);
+    if (d == NULL) {
+        perror("opendir");
+        return 1;
     }
 
-    // Create file tree structure from cJSON object
-    FileTreeNode *file_tree = create_tree_from_cjson(file_tree_json);
-    if (file_tree == NULL) {
-        fprintf(stderr, "Error: Failed to create file tree from JSON.\n");
-        cJSON_Delete(file_tree_json);
-        return NULL;
-    }
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL) {
+        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
+            continue;
 
-    // Clean up
-    cJSON_Delete(file_tree_json);
-    return file_tree;
-}
+        char fullpath[4096];
+        snprintf(fullpath, sizeof(fullpath), "%s/%s", path, ent->d_name);
 
-cJSON *parse_json(FILE *input) {
-    char *json_string = strdup("");
+        int is_hidden = (ent->d_name[0] == '.');
+        int is_reg = 0;
+        int is_dir = 0;
+        int is_syml = 0;
+        switch (ent->d_type) {
+            case DT_REG:
+                is_reg = 1;
+                break;
+            case DT_DIR:
+                is_dir = 1;
+                break;
+            case DT_LNK:
+                is_syml = 1;
+                break;
+            case DT_UNKNOWN:
+                // must stat to know
+                struct stat st;
+                if (lstat(fullpath, &st) == 0) {
+                    if (S_ISREG(st.st_mode))
+                        is_reg = 1;
+                    if (S_ISDIR(st.st_mode))
+                        is_dir = 1;
+                    if (S_ISLNK(st.st_mode))
+                        is_syml = 1;
+                }
+                break;
+            default:
+                // DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, etc.
+                fprintf(stderr, "Warning: Skipping unsupported file type: %s\n", fullpath);
+                return 1;
+        }
 
-    char buffer[4096];
-    while (fgets(buffer, sizeof(buffer), input) != NULL) {
-        char *old_json_string = json_string;
-        json_string = concat(old_json_string, buffer);
-        free(old_json_string);
-    }
 
-    cJSON *json = cJSON_Parse(json_string);
-    if (json == NULL) {
-        free(json_string);
-        return NULL;
-    }
-
-    free(json_string);
-    return json;
-}
-
-FileTreeNode *create_tree_from_cjson_recursive(cJSON *file_tree_json, int depth) {
-    FileTreeNode *node = malloc(sizeof(FileTreeNode));
-    if (node == NULL) {
-        return NULL;
-    }
-
-    cJSON *type = cJSON_GetObjectItemCaseSensitive(file_tree_json, "type");
-    char *type_str = cJSON_GetStringValue(type);
-    if (type_str == NULL) {
-        free(node);
-        return NULL;
-    } else if (strcmp(type_str, "file") == 0) {
-        node->type = FILE_NODE;
-    } else if (strcmp(type_str, "directory") == 0) {
-        node->type = DIRECTORY_NODE;
-    } else if (strcmp(type_str, "link") == 0) {
-        node->type = LINK_NODE;
-    } else {
-        free(node);
-        return NULL;
-    }
-
-    cJSON *name = cJSON_GetObjectItemCaseSensitive(file_tree_json, "name");
-    char *name_str = cJSON_GetStringValue(name);
-    if (name_str == NULL) {
-        free(node);
-        return NULL;
-    }
-    node->name = strdup(name_str);
-    node->children = (Children){0};
-    node->collapsed = 0;
-    node->depth = depth;
-    // TODO: handle strdup(NULL) if it breaks anything
-    node->target = (node->type == LINK_NODE) ?
-        strdup(
-            cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(file_tree_json, "target"))
-        ) : NULL;
-    cJSON *child = NULL;
-    cJSON *children =
-        cJSON_GetObjectItemCaseSensitive(file_tree_json, "contents");
-    if (cJSON_GetObjectItemCaseSensitive(cJSON_GetArrayItem(children, 0), "error") != NULL) {
-        return NULL;
-    }
-    cJSON_ArrayForEach(child, children) {
-        FileTreeNode *child_node = create_tree_from_cjson_recursive(child, depth + 1);
-        if (child_node != NULL) {
-            DA_PUSH(FileTreeNode *, &(node->children), child_node);
+        FileTreeNode node;
+        if (is_reg) {
+            node.type = FILE_NODE;
+        } else if (is_dir) {
+            node.type = DIRECTORY_NODE;
+        } else if (is_syml) {
+            node.type = LINK_NODE;
+        }
+        if (sizeof(ent->d_name) > sizeof(node.name)) {
+            fprintf(stderr, "Error: Filename too long: %s\n", ent->d_name);
+            return 1;
         } else {
-            // TODO: clean up
-            // Clean up should be done from top to bottom,
-            // i.e., the `free` function should recursively
-            // do the clean up for the root.
-            return NULL;
+            snprintf(node.name, sizeof(node.name), "%s", ent->d_name);
+        }
+        node.collapsed = is_hidden ? 1 : 0;
+        node.depth = depth;
+        if (is_syml) {
+            ssize_t len = readlink(fullpath, node.target, sizeof(node.target) - 1);
+            if (len == -1) {
+                perror("readlink");
+                return 1;
+            } else {
+                node.target[len] = '\0';
+            }
+        }
+        DA_PUSH(FileTreeNode, file_tree, node);
+        
+        if (is_dir && walk(file_tree, fullpath, depth + 1) != 0) {
+            return 1;
         }
     }
 
-    return node;
+    closedir(d);
+    return 0;
 }
 
-FileTreeNode *create_tree_from_cjson(cJSON *file_tree_json) {
-    // Discard report from the tree program
-    cJSON *real_file_tree_json = cJSON_GetArrayItem(file_tree_json, 0);
-    if (real_file_tree_json == NULL) {
-        return NULL;
+int create_file_tree_from_path(FileTree *file_tree, const char *path) {
+    // Add root node
+    FileTreeNode root;
+    root.type = DIRECTORY_NODE;
+    root.name[0] = '.'; root.name[1] = '\0';    // represent the root with "."
+    root.collapsed = 0;
+    root.depth = 0;
+    root.target[0] = '\0';
+    DA_PUSH(FileTreeNode, file_tree, root);
+
+    // Iterate over directory entries
+    if (walk(file_tree, path, 1) != 0) {
+        DA_FREE(FileTreeNode, file_tree);
+        return 1;
     }
 
-    FileTreeNode *root = create_tree_from_cjson_recursive(real_file_tree_json, 0);
-    return root;
+    return 0;
 }

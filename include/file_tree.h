@@ -1,6 +1,3 @@
-/**
- * The program directly calls POSIX functions to read the file system.
- */
 #ifndef FILE_TREE_H
 #define FILE_TREE_H
 
@@ -29,7 +26,9 @@ typedef struct FileTreeNode {
  * Creates a file tree from the given path.
  * All directories are expanded (collapsed = 0) initially.
  * The collapsed field is 0 for file nodes.
- * `file_tree` is an empty FileTree if fails.
+ * 
+ * Returns 0 on success, non-zero on failure.
+ * `file_tree` is empty if fails and is populated if succeeds.
  * The caller is responsible for freeing the returned tree.
  */
 int create_file_tree_from_path(FileTree *file_tree, const char *path);
