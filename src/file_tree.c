@@ -59,7 +59,7 @@ int walk(FileTree *file_tree, const char *path, int depth) {
         } else if (is_syml) {
             node.type = LINK_NODE;
         }
-        if (sizeof(ent->d_name) > sizeof(node.name)) {
+        if (strlen(ent->d_name) >= sizeof(node.name)) {
             fprintf(stderr, "Error: Filename too long: %s\n", ent->d_name);
             return 1;
         } else {
