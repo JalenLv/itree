@@ -41,7 +41,7 @@ int create_file_tree_from_path(FileTree *file_tree, const char *path);
  * Returns 0 if the given index is the last visible index. (Because 0 is always the first visible index)
  * Returns -1 if the given index is invalid.
  * 
- * Behavor is undefined if the given index is not visible.
+ * Behavior is undefined if the given index is not visible.
  */
 int next(FileTree *file_tree, int idx);
 
@@ -53,7 +53,7 @@ int next(FileTree *file_tree, int idx);
  * Returns the last visible index if the given index is 0. (Because 0 is always the first visible index)
  * Returns -1 if the given index is invalid.
  * 
- * Behavor is undefined if the given index is not visible.
+ * Behavior is undefined if the given index is not visible.
  */
 int prev(FileTree *file_tree, int idx);
 
