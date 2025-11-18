@@ -1,54 +1,60 @@
-/**
- * The program directly manipulates cJSON objects representing the file tree.
- */
 #ifndef FILE_TREE_H
 #define FILE_TREE_H
 
-#include "cJSON.h"
-#include <stdio.h>
 #include "helpers.h"
 
-typedef enum NodeType {
+typedef struct FileTreeNode FileTreeNode;
+typedef struct {
+    DA_FIELDS(FileTreeNode);
+} FileTree;
+
+typedef enum {
     FILE_NODE,
     DIRECTORY_NODE,
     LINK_NODE
 } NodeType;
 
-typedef struct FileTreeNode FileTreeNode;
-
-typedef struct Children {
-    DA_FIELDS(FileTreeNode *);
-} Children;
-
 typedef struct FileTreeNode {
-    NodeType type;
-    char *name;
-    Children children;
-    int collapsed; // 0 for expanded, 1 for collapsed; expanded by default
-    int depth; // depth in the tree, root is 0
-    char *target; // target path if it's a link; NULL otherwise
+    NodeType    type;           // type of the node: file, directory, or link
+    char        name[256];      // name of the file or directory
+    int         collapsed;      // 0 for expanded, 1 for collapsed; expanded by default
+    int         depth;          // depth in the tree, root is 0
+    char        target[256];    // target path if it's a link; NULL otherwise
 } FileTreeNode;
 
 /**
- * Creates a file tree from the given input file.
+ * Creates a file tree from the given path.
  * All directories are expanded (collapsed = 0) initially.
- * The collapsed field is NULL for file nodes.
- * Returns NULL if fails.
+ * The collapsed field is 0 for file nodes.
+ * 
+ * Returns 0 on success, non-zero on failure.
+ * `file_tree` is empty if fails and is populated if succeeds.
  * The caller is responsible for freeing the returned tree.
  */
-FileTreeNode *create_file_tree(FILE *input);
+int create_file_tree_from_path(FileTree *file_tree, const char *path);
 
 /**
- * Parses JSON from the given input file and returns the corresponding cJSON object.
- * Returns NULL if parsing fails.
+ * Given a file tree and a visible node index, returns the next visible index.
+ * Skips over collapsed directories.
+ * 
+ * Returns the next visible index.
+ * Returns 0 if the given index is the last visible index. (Because 0 is always the first visible index)
+ * Returns -1 if the given index is invalid.
+ * 
+ * Behavior is undefined if the given index is not visible.
  */
-cJSON *parse_json(FILE *input);
+int next(FileTree *file_tree, int idx);
 
 /**
- * Creates a FileTreeNode structure from the given cJSON object.
- * Returns NULL if fails.
- * The caller is responsible for freeing the returned tree.
+ * Given a file tree and a visible node index, returns the previous visible index.
+ * Skips over collapsed directories.
+ * 
+ * Returns the previous visible index.
+ * Returns the last visible index if the given index is 0. (Because 0 is always the first visible index)
+ * Returns -1 if the given index is invalid.
+ * 
+ * Behavior is undefined if the given index is not visible.
  */
-FileTreeNode *create_tree_from_cjson(cJSON *json);
+int prev(FileTree *file_tree, int idx);
 
 #endif // FILE_TREE_H
