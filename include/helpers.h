@@ -141,7 +141,7 @@ char *concat_NULL(const char *str1, ...);
 #define DQ_BACK(T, deque) DQ_GET(T, deque, (deque)->count - 1)
 
 /** 
- * Minumum and Maximum macros
+ * Minimum and Maximum macros
  */
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
