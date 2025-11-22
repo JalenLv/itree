@@ -1,6 +1,13 @@
 #include <stdlib.h>
-#include <ncurses.h>
 #include <unistd.h>
+
+#ifdef WIDE_NCURSES
+#include <ncursesw/ncurses.h>
+#include <locale.h>
+#include <wchar.h>
+#else
+#include <ncurses.h>
+#endif
 
 #include "tui.h"
 #include "helpers.h"
@@ -60,7 +67,27 @@ int draw_visible_entries(AppState *app_state) {
         // Display node name with prefix and suffix
         char *prefix = (node->type == DIRECTORY_NODE) ? (node->collapsed ? "  > " : "  v ") : "    ";
         char *suffix = (node->type == DIRECTORY_NODE) ? "/" : (node->type == LINK_NODE ? " -> " : "");
+#ifdef WIDE_NCURSES
+        // Use wide print for potential wide characters
+        if (node->type == LINK_NODE) {
+            wchar_t wname[512];
+            wchar_t wtarget[512];
+            size_t name_ret = mbstowcs(wname, node->name, 512);
+            size_t target_ret = mbstowcs(wtarget, node->target, 512);
+            if (name_ret == (size_t)(-1) || target_ret == (size_t)(-1)) {
+                // Conversion error, fallback to narrow print
+                printw("%s%s%s%s\n", prefix, node->name, suffix, node->target);
+            } else {
+                printw("%s%ls%s%ls\n", prefix, wname, suffix, wtarget);
+            }
+        } else {
+            wchar_t wname[512];
+            mbstowcs(wname, node->name, 512);
+            printw("%s%ls%s\n", prefix, wname, suffix);
+        }
+#else
         printw("%s%s%s%s\n", prefix, node->name, suffix, (node->type == LINK_NODE ? node->target : ""));
+#endif
         // Turn off highlight if needed
         if (i == app_state->selected_entry) {
             attroff(A_STANDOUT);
@@ -77,6 +104,9 @@ int draw_visible_entries(AppState *app_state) {
 
 int run_tui(FileTree *file_tree) {
     // Init curses
+#ifdef WIDE_NCURSES
+    setlocale(LC_ALL, "");
+#endif
     // When input is piped, stdin is not connected to the terminal.
     // We need to open /dev/tty directly for keyboard input.
     FILE *tty_input = fopen("/dev/tty", "r");
