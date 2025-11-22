@@ -10,7 +10,7 @@ ncurses_cflags=""
 
 usage() {
     cat <<EOF
-Usage: $0 [--prefix=PATH]
+Usage: $0 [OPTIONS]
 
 Options:
   --prefix=PATH            Installation prefix (default: $prefix_default)
