@@ -152,7 +152,7 @@ int prev(FileTree *file_tree, int idx) {
     if (prev_depth <= depth) {
         // If the previous node is at the same or shallower depth, return it
         return idx - 1;
-    } else  {
+    } else {
         // Otherwise, find its ancestors and infer from their state
         if (prev_depth == depth + 1) {
             for (int i = idx - 1; i >= 0; i--) {
