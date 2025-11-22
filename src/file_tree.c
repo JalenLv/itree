@@ -92,7 +92,9 @@ int create_file_tree_from_path(FileTree *file_tree, const char *path) {
     // Add root node
     FileTreeNode root;
     root.type = DIRECTORY_NODE;
-    snprintf(root.name, sizeof(root.name), "%s", basename((char *)path));
+    char path_copy[4096];
+    snprintf(path_copy, sizeof(path_copy), "%s", path);
+    snprintf(root.name, sizeof(root.name), "%s", basename(path_copy));
     root.collapsed = 0;
     root.depth = 0;
     root.target[0] = '\0';
