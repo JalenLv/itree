@@ -231,6 +231,40 @@ int run_tui(FileTree *file_tree) {
                 app_state.selected_entry = app_state.visible_entries_tail;
                 update_head_given_tail(&app_state, file_tree);
                 break;
+            case 4: // Ctrl-D
+                // Go down half a page
+                for (int i = 0; i < LINES / 2; ++i) {
+                    if (next(file_tree, app_state.visible_entries_tail) != 0) {
+                        // If not at the end, slide window down
+                        // Keep selected entry relative stationary to the window
+                        app_state.visible_entries_head = next(file_tree, app_state.visible_entries_head);
+                        app_state.visible_entries_tail = next(file_tree, app_state.visible_entries_tail);
+                        app_state.selected_entry = next(file_tree, app_state.selected_entry);
+                    } else {
+                        // At the end, slide selected entry down only
+                        if (next(file_tree, app_state.selected_entry) != 0) {
+                            app_state.selected_entry = next(file_tree, app_state.selected_entry);
+                        }
+                    }
+                }
+                break;
+            case 21: // Ctrl-U
+                // Go up half a page
+                for (int i = 0; i < LINES / 2; ++i) {
+                    if (app_state.visible_entries_head != 0) {
+                        // If not at the start, slide window up
+                        // Keep selected entry relative stationary to the window
+                        app_state.visible_entries_tail = prev(file_tree, app_state.visible_entries_tail);
+                        app_state.visible_entries_head = prev(file_tree, app_state.visible_entries_head);
+                        app_state.selected_entry = prev(file_tree, app_state.selected_entry);
+                    } else {
+                        // At the start, slide selected entry up only
+                        if (app_state.selected_entry != 0) {
+                            app_state.selected_entry = prev(file_tree, app_state.selected_entry);
+                        }
+                    }
+                }
+                break;
             default:
                 break;
         }
