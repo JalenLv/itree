@@ -1,3 +1,6 @@
+# Configuration files
+config.mk
+
 # Clang cache
 .cache/
 
