@@ -19,6 +19,10 @@ while [ "$#" -gt 0 ]; do
 	case "$1" in
 		--prefix=*)
 			prefix_value="${1#*=}"
+			if [ -z "$prefix_value" ]; then
+				echo "error: --prefix requires a path" >&2
+				exit 1
+			fi
 			;;
 		--prefix)
 			if [ -z "${2-}" ]; then
