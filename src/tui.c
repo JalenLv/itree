@@ -151,52 +151,49 @@ int run_tui(FileTree *file_tree) {
         switch (ch) {
             case KEY_DOWN:
             case 'j':
-                if (app_state.visible_entries_head == 0 && next(file_tree, app_state.visible_entries_tail) == 0) {
-                    // If the window shows all entries
-                    app_state.selected_entry = next(file_tree, app_state.selected_entry);
-                } else {
-                    // If the window shows a subset of entries
-                    if (app_state.selected_entry == app_state.visible_entries_tail) {
-                        // Slide window down
-                        if (next(file_tree, app_state.visible_entries_tail) != 0) {
-                            // If not at the end
-                            app_state.visible_entries_head = next(file_tree, app_state.visible_entries_head);
-                            app_state.visible_entries_tail = next(file_tree, app_state.visible_entries_tail);
-                            app_state.selected_entry = app_state.visible_entries_tail;  
-                        } else {
-                            // At the end, loop back to top
-                            init_app_state(&app_state, file_tree);
-                        }
+                int is_window_subset = !(
+                    app_state.visible_entries_head == 0
+                    && next(file_tree, app_state.visible_entries_tail) == 0
+                );
+                int is_selected_at_bottom = (app_state.selected_entry == app_state.visible_entries_tail);
+                if (is_window_subset && is_selected_at_bottom) {
+                    // Slide window down
+                    if (next(file_tree, app_state.visible_entries_tail) != 0) {
+                        // If not at the end
+                        app_state.visible_entries_head = next(file_tree, app_state.visible_entries_head);
+                        app_state.visible_entries_tail = next(file_tree, app_state.visible_entries_tail);
+                        app_state.selected_entry = app_state.visible_entries_tail;  
                     } else {
-                        // Move selection down
-                        app_state.selected_entry = next(file_tree, app_state.selected_entry);
+                        // At the end, loop back to top
+                        init_app_state(&app_state, file_tree);
                     }
+                } else {
+                    // Move selection down
+                    app_state.selected_entry = next(file_tree, app_state.selected_entry);
                 }
                 break;
             case KEY_UP:
             case 'k':
-                if (app_state.visible_entries_head == 0 && next(file_tree, app_state.visible_entries_tail) == 0) {
-                    // If the window shows all entries
-                    app_state.selected_entry = prev(file_tree, app_state.selected_entry);
-                } else {
-                    // If the window shows a subset of entries
-                    if (app_state.selected_entry == app_state.visible_entries_head) {
-                        // Slide window up
-                        if (app_state.visible_entries_head != 0) {
-                            // If not at the start
-                            app_state.visible_entries_tail = prev(file_tree, app_state.visible_entries_tail);
-                            app_state.visible_entries_head = prev(file_tree, app_state.visible_entries_head);
-                            app_state.selected_entry = app_state.visible_entries_head;  
-                        } else {
-                            // At the start, go to bottom
-                            app_state.visible_entries_tail = prev(file_tree, 0);
-                            app_state.selected_entry = app_state.visible_entries_tail;
-                            update_head_given_tail(&app_state, file_tree);
-                        }
+                is_window_subset = !(
+                    app_state.visible_entries_head == 0
+                    && next(file_tree, app_state.visible_entries_tail) == 0
+                );
+                int is_selected_at_top = (app_state.selected_entry == app_state.visible_entries_head);
+                if (is_window_subset && is_selected_at_top) {
+                    // Slide window up
+                    if (app_state.visible_entries_head != 0) {
+                        // If not at the start
+                        app_state.visible_entries_head = prev(file_tree, app_state.visible_entries_head);
+                        update_tail_given_head(&app_state, file_tree);
+                        app_state.selected_entry = app_state.visible_entries_head;  
                     } else {
-                        // Move selection up
-                        app_state.selected_entry = prev(file_tree, app_state.selected_entry);
+                        // At the start, go to bottom
+                        app_state.visible_entries_tail = prev(file_tree, 0);
+                        app_state.selected_entry = app_state.visible_entries_tail;
+                        update_head_given_tail(&app_state, file_tree);
                     }
+                } else {
+                    app_state.selected_entry = prev(file_tree, app_state.selected_entry);
                 }
                 break;
             case KEY_LEFT:
@@ -254,8 +251,8 @@ int run_tui(FileTree *file_tree) {
                     if (app_state.visible_entries_head != 0) {
                         // If not at the start, slide window up
                         // Keep selected entry relative stationary to the window
-                        app_state.visible_entries_tail = prev(file_tree, app_state.visible_entries_tail);
                         app_state.visible_entries_head = prev(file_tree, app_state.visible_entries_head);
+                        update_tail_given_head(&app_state, file_tree);
                         app_state.selected_entry = prev(file_tree, app_state.selected_entry);
                     } else {
                         // At the start, slide selected entry up only
