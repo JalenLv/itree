@@ -148,22 +148,37 @@ int prev(FileTree *file_tree, int idx) {
     }
 
     int depth = node->depth;
-    if (DA_GET(FileTreeNode, file_tree, idx - 1).depth <= depth) {
+    int prev_depth = DA_GET(FileTreeNode, file_tree, idx - 1).depth;
+    if (prev_depth <= depth) {
         // If the previous node is at the same or shallower depth, return it
         return idx - 1;
-    } else {
-        // Otherwise, find the closest ancestor and infer from its state
-        for (int i = idx - 1; i >= 0; i--) {
-            FileTreeNode *prev_node = DA_GET_PTR(FileTreeNode *, file_tree, i);
-            if (prev_node->depth == depth) {
-                if (prev_node->collapsed) {
-                    return i;
-                } else {
-                    return idx - 1;
+    } else  {
+        // Otherwise, find its ancestors and infer from their state
+        if (prev_depth == depth + 1) {
+            for (int i = idx - 1; i >= 0; i--) {
+                FileTreeNode *prev_node = DA_GET_PTR(FileTreeNode *, file_tree, i);
+                if (prev_node->depth == depth) {
+                    if (prev_node->collapsed) {
+                        return i;
+                    } else {
+                        return idx - 1;
+                    }
+                }
+            }
+        } else {
+            for (int i = idx - 1; i >= 0; i--) {
+                FileTreeNode *prev_node = DA_GET_PTR(FileTreeNode *, file_tree, i);
+                if (prev_node->depth == depth) {
+                    int j = i;
+                    while (next(file_tree, j) != idx) {
+                        j = next(file_tree, j);
+                    }
+                    return j;
                 }
             }
         }
     }
 
-    return -1;
+    return -1; // should not reach here
+
 }
