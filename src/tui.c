@@ -231,7 +231,7 @@ int run_tui(FileTree *file_tree) {
                 app_state.selected_entry = app_state.visible_entries_tail;
                 update_head_given_tail(&app_state, file_tree);
                 break;
-            case 4: // Ctrl-D 
+            case 4: // Ctrl-D
                 // Go down half a page
                 for (int i = 0; i < LINES / 2; ++i) {
                     if (next(file_tree, app_state.visible_entries_tail) != 0) {
