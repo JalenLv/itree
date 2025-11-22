@@ -3,13 +3,18 @@
 PREFIX ?= /usr/local
 BINDIR := $(PREFIX)/bin
 
+INSTALL ?= install
+
 SRC=$(wildcard src/*.c)
 INCLUDE_DIR=include
 
-INSTALL ?= install
-
-CFLAGS=-Wall -Wextra -O3 \
-	-I$(INCLUDE_DIR)
+CFLAGS := -Wall -Wextra -O3 \
+    $(NCURSES_CFLAGS)
+ifeq ($(WIDE_NCURSES),yes)
+CFLAGS += -DWIDE_NCURSES
+endif
+INCFLAGS := -I$(INCLUDE_DIR)
+LDFLAGS := $(NCURSES_LIBS)
 
 .PHONY: build clean distclean run install
 
@@ -25,7 +30,7 @@ run: build
 	./itree
 
 itree: $(SRC)
-	gcc $(CFLAGS) $(SRC) -o itree -lncurses
+	gcc $(CFLAGS) $(INCFLAGS) $(SRC) -o itree $(LDFLAGS)
 
 install: build
 	$(INSTALL) -d $(DESTDIR)$(BINDIR)
