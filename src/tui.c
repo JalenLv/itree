@@ -217,6 +217,9 @@ int run_tui(FileTree *file_tree) {
                     update_tail_given_head(&app_state, file_tree);
                 }
                 break;
+            case KEY_RESIZE:
+                update_tail_given_head(&app_state, file_tree);
+                break;
             case 'g': // Go to top
                 init_app_state(&app_state, file_tree);
                 break;
