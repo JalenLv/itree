@@ -158,8 +158,8 @@ int prev(FileTree *file_tree, int idx) {
         return candidate;
     } else {
         // Otherwise, find its ancestors and infer from their state
+        int cur_depth = candidate_depth;
         for (int i = candidate; i >= 0; i--) {
-            int cur_depth = candidate_depth;
             if (DA_GET(FileTreeNode, file_tree, i).depth == cur_depth - 1) {
                 if (DA_GET(FileTreeNode, file_tree, i).collapsed) {
                     candidate = i;
