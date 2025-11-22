@@ -248,7 +248,7 @@ int run_tui(FileTree *file_tree) {
                     }
                 }
                 break;
-            case 21: // Ctrl-U 
+            case 21: // Ctrl-U
                 // Go up half a page
                 for (int i = 0; i < LINES / 2; ++i) {
                     if (app_state.visible_entries_head != 0) {
