@@ -219,6 +219,9 @@ int run_tui(FileTree *file_tree) {
                 break;
             case KEY_RESIZE:
                 update_tail_given_head(&app_state, file_tree);
+                if (app_state.selected_entry > app_state.visible_entries_tail) {
+                    app_state.selected_entry = app_state.visible_entries_tail;
+                }
                 break;
             case 'g': // Go to top
                 init_app_state(&app_state, file_tree);
