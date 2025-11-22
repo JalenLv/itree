@@ -70,14 +70,14 @@ int draw_visible_entries(AppState *app_state) {
 #ifdef WIDE_NCURSES
         // Use wide print for potential wide characters
         if (node->type == LINK_NODE) {
-            wchar_t wname[256];
-            wchar_t wtarget[256];
-            mbstowcs(wname, node->name, 256);
-            mbstowcs(wtarget, node->target, 256);
+            wchar_t wname[512];
+            wchar_t wtarget[512];
+            mbstowcs(wname, node->name, 512);
+            mbstowcs(wtarget, node->target, 512);
             printw("%s%ls%s%ls\n", prefix, wname, suffix, wtarget);
         } else {
-            wchar_t wname[256];
-            mbstowcs(wname, node->name, 256);
+            wchar_t wname[512];
+            mbstowcs(wname, node->name, 512);
             printw("%s%ls%s\n", prefix, wname, suffix);
         }
 #else
