@@ -72,9 +72,14 @@ int draw_visible_entries(AppState *app_state) {
         if (node->type == LINK_NODE) {
             wchar_t wname[512];
             wchar_t wtarget[512];
-            mbstowcs(wname, node->name, 512);
-            mbstowcs(wtarget, node->target, 512);
-            printw("%s%ls%s%ls\n", prefix, wname, suffix, wtarget);
+            size_t name_ret = mbstowcs(wname, node->name, 512);
+            size_t target_ret = mbstowcs(wtarget, node->target, 512);
+            if (name_ret == (size_t)(-1) || target_ret == (size_t)(-1)) {
+                // Conversion error, fallback to narrow print
+                printw("%s%s%s%s\n", prefix, node->name, suffix, node->target);
+            } else {
+                printw("%s%ls%s%ls\n", prefix, wname, suffix, wtarget);
+            }
         } else {
             wchar_t wname[512];
             mbstowcs(wname, node->name, 512);
