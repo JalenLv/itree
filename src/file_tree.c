@@ -2,6 +2,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <libgen.h>
 
 int walk(FileTree *file_tree, const char *path, int depth) {
     DIR *d = opendir(path);
@@ -91,7 +92,9 @@ int create_file_tree_from_path(FileTree *file_tree, const char *path) {
     // Add root node
     FileTreeNode root;
     root.type = DIRECTORY_NODE;
-    root.name[0] = '.'; root.name[1] = '\0';    // represent the root with "."
+    char path_copy[4096];
+    snprintf(path_copy, sizeof(path_copy), "%s", path);
+    snprintf(root.name, sizeof(root.name), "%s", basename(path_copy));
     root.collapsed = 0;
     root.depth = 0;
     root.target[0] = '\0';
