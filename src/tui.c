@@ -162,7 +162,7 @@ int run_tui(FileTree *file_tree) {
                         // If not at the end
                         app_state.visible_entries_head = next(file_tree, app_state.visible_entries_head);
                         app_state.visible_entries_tail = next(file_tree, app_state.visible_entries_tail);
-                        app_state.selected_entry = app_state.visible_entries_tail;  
+                        app_state.selected_entry = app_state.visible_entries_tail;
                     } else {
                         // At the end, loop back to top
                         init_app_state(&app_state, file_tree);
