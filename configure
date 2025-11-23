@@ -49,6 +49,9 @@ def detect_libs(name: str, env: dict) -> str:
             print(f"Error: pkg-config failed to get libs for {name}", file=sys.stderr)
             print(e.stderr.strip(), file=sys.stderr)
             sys.exit(e.returncode)
+    else:
+        print(f"Error: pkg-config not found", file=sys.stderr)
+        sys.exit(1)
 
 def detect_cflags(name: str, env: dict) -> str:
     if shutil.which("pkg-config"):
@@ -65,6 +68,9 @@ def detect_cflags(name: str, env: dict) -> str:
             print(f"Error: pkg-config failed to get cflags for {name}", file=sys.stderr)
             print(e.stderr.strip(), file=sys.stderr)
             sys.exit(e.returncode)
+    else:
+        print(f"Error: pkg-config not found", file=sys.stderr)
+        sys.exit(1)
 
 def detect_ncurses_libs_cflags(wide_ncurses: bool, env: dict) -> tuple[str, str]:
     ncurses_libs: str = ""
