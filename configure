@@ -52,6 +52,14 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
+# Detect Homebrew ncurses on macOS
+if [ "$(uname)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
+    BREW_NCURSES_PREFIX=$(brew --prefix ncurses 2>/dev/null || true)
+    if [ -n "$BREW_NCURSES_PREFIX" ] && [ -d "$BREW_NCURSES_PREFIX/lib/pkgconfig" ]; then
+        export PKG_CONFIG_PATH="$BREW_NCURSES_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+    fi
+fi
+
 detect_ncurses() {
     name="$1"
     default_libs="$2"
@@ -93,4 +101,6 @@ if [ "$wide_ncurses" = "yes" ]; then
 else
     echo "Wide-character ncurses: disabled"
 fi
+echo "NCURSES_LIBS: $ncurses_libs"
+echo "NCURSES_CFLAGS: $ncurses_cflags"
 echo "Run 'make' to build and 'make install' to install."
