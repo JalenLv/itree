@@ -1,106 +1,117 @@
-#!/usr/bin/env sh
+#!/usr/bin/env python3
 
-set -e
+import os
+import sys
+import shutil
+import subprocess
+import argparse
+from typing import Optional
 
-prefix_default="/usr/local"
-prefix_value="$prefix_default"
-wide_ncurses="no"
-ncurses_libs="-lncurses"
-ncurses_cflags=""
+def detect_brew_ncurses_prefix() -> str:
+    if sys.platform != "darwin":
+        return ""
+    if not shutil.which("brew"):
+        return ""
+    try:
+        p = subprocess.run(["brew", "--prefix", "ncurses"], capture_output=True, text=True, check=True)
+        prefix = p.stdout.strip()
+        return prefix
+    except subprocess.CalledProcessError as e:
+        print("Error: Homebrew failed to detect ncurses prefix", file=sys.stderr)
+        print(e.stderr.strip(), file=sys.stderr)
+        exit(e.returncode)
 
-usage() {
-    cat <<EOF
-Usage: $0 [OPTIONS]
+def prepare_env_for_pkg_config(brew_prefix: str) -> dict:
+    env = os.environ.copy()
+    if brew_prefix:
+        pcdir = os.path.join(brew_prefix, "lib", "pkgconfig")
+        if os.path.isdir(pcdir):
+            existing = env.get("PKG_CONFIG_PATH", "")
+            if existing:
+                env["PKG_CONFIG_PATH"] = f"{pcdir}:{existing}"
+            else:
+                env["PKG_CONFIG_PATH"] = pcdir
+        # also expose brew prefix value for fallbacks
+        env["BREW_NCURSES_PREFIX"] = brew_prefix
+    return env
 
-Options:
-  --prefix=PATH            Installation prefix (default: $prefix_default)
-  --enable-wide-ncurses    Build with wide-character ncurses support
-  -h, --help               Show this help message
-EOF
-}
+def detect_libs(name: str, env: dict) -> str:
+    if shutil.which("pkg-config"):
+        try:
+            subprocess.run(["pkg-config", "--exists", name], env=env, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error: pkg-config could not find {name}", file=sys.stderr)
+            exit(e.returncode)
+        try:
+            p = subprocess.run(["pkg-config", "--libs", name], capture_output=True, text=True, env=env, check=True)
+            libs = p.stdout.strip()
+            return libs
+        except subprocess.CalledProcessError as e:
+            print(f"Error: pkg-config failed to get libs for {name}", file=sys.stderr)
+            print(e.stderr.strip(), file=sys.stderr)
+            exit(e.returncode)
 
-while [ "$#" -gt 0 ]; do
-    case "$1" in
-        --prefix=*)
-            prefix_value="${1#*=}"
-            if [ -z "$prefix_value" ]; then
-                echo "error: --prefix requires a path" >&2
-                exit 1
-            fi
-            ;;
-        --prefix)
-            if [ -z "${2-}" ]; then
-                echo "error: --prefix requires a path" >&2
-                exit 1
-            fi
-            prefix_value="$2"
-            shift
-            ;;
-        --enable-wide-ncurses)
-            wide_ncurses="yes"
-            ;;
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        *)
-            echo "error: unknown option: $1" >&2
-            usage
-            exit 1
-            ;;
-    esac
-    shift
-done
+def detect_cflags(name: str, env: dict) -> str:
+    if shutil.which("pkg-config"):
+        try:
+            subprocess.run(["pkg-config", "--exists", name], env=env, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error: pkg-config could not find {name}", file=sys.stderr)
+            exit(e.returncode)
+        try:
+            p = subprocess.run(["pkg-config", "--cflags", name], capture_output=True, text=True, env=env, check=True)
+            cflags = p.stdout.strip()
+            return cflags
+        except subprocess.CalledProcessError as e:
+            print(f"Error: pkg-config failed to get cflags for {name}", file=sys.stderr)
+            print(e.stderr.strip(), file=sys.stderr)
+            exit(e.returncode)
 
-# Detect Homebrew ncurses on macOS
-if [ "$(uname)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
-    BREW_NCURSES_PREFIX=$(brew --prefix ncurses 2>/dev/null || true)
-    if [ -n "$BREW_NCURSES_PREFIX" ] && [ -d "$BREW_NCURSES_PREFIX/lib/pkgconfig" ]; then
-        export PKG_CONFIG_PATH="$BREW_NCURSES_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
-    fi
-fi
+def detect_ncurses_libs_cflags(wide_ncurses: bool, env: dict) -> tuple[str, str]:
+    ncurses_libs: str = ""
+    ncurses_cflags: str = ""
 
-detect_ncurses() {
-    name="$1"
-    default_libs="$2"
-    if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists "$name"; then
-        echo "$(pkg-config --libs "$name")"
-    else
-        echo "$default_libs"
-    fi
-}
+    nc_name: str = "ncursesw" if wide_ncurses else "ncurses"
+    ncurses_libs = detect_libs(nc_name, env)
+    if not ncurses_libs:
+        ncurses_libs = "-lncursesw" if wide_ncurses else "-lncurses"
+    ncurses_cflags = detect_cflags(nc_name, env)
+    if wide_ncurses:
+        ncurses_cflags = ncurses_cflags + " -D_XOPEN_SOURCE_EXTENDED"
 
-detect_ncurses_cflags() {
-    name="$1"
-    if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists "$name"; then
-        echo "$(pkg-config --cflags "$name")"
-    else
-        echo ""
-    fi
-}
+    return ncurses_libs, ncurses_cflags
 
-if [ "$wide_ncurses" = "yes" ]; then
-    ncurses_libs="$(detect_ncurses ncursesw -lncursesw)"
-    ncurses_cflags="$(detect_ncurses_cflags ncursesw) -D_XOPEN_SOURCE_EXTENDED"
-else
-    ncurses_libs="$(detect_ncurses ncurses -lncurses)"
-    ncurses_cflags="$(detect_ncurses_cflags ncurses)"
-fi
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Configure the build system.")
+    parser.add_argument("--prefix", default="/usr/local", help="Install prefix (default: /usr/local)")
+    parser.add_argument("--enable-wide-ncurses", action="store_true", help="Build with wide-character ncurses support")
+    args = parser.parse_args()
 
-cat > config.mk <<EOF
-# Generated by ./configure
-PREFIX := $prefix_value
-WIDE_NCURSES := $wide_ncurses
-NCURSES_LIBS := $ncurses_libs
-NCURSES_CFLAGS := $ncurses_cflags
-EOF
+    prefix_value: str = args.prefix
+    wide_ncurses: bool = args.enable_wide_ncurses
 
-echo "Configured prefix: $prefix_value"
-if [ "$wide_ncurses" = "yes" ]; then
-    echo "Wide-character ncurses: enabled"
-else
-    echo "Wide-character ncurses: disabled"
-fi
-echo "NCURSES_LIBS: $ncurses_libs"
-echo "NCURSES_CFLAGS: $ncurses_cflags"
-echo "Run 'make' to build and 'make install' to install."
+    brew_prefix: str = detect_brew_ncurses_prefix()
+    env: dict = prepare_env_for_pkg_config(brew_prefix)
+
+    ncurses_libs: str = ""
+    ncurses_cflags: str = ""
+    ncurses_libs, ncurses_cflags = detect_ncurses_libs_cflags(wide_ncurses, env)
+
+    # Write config.mk
+    with open("config.mk", "w") as f:
+        f.write("# Generated by ./configure\n")
+        f.write(f"PREFIX := {prefix_value}\n")
+        f.write(f"WIDE_NCURSES := {'yes' if wide_ncurses else 'no'}\n")
+        f.write(f"NCURSES_LIBS := {ncurses_libs}\n")
+        f.write(f"NCURSES_CFLAGS := {ncurses_cflags}\n")
+
+    # Print summary
+    print(f"Install prefix: {prefix_value}")
+    print(f"Wide-character ncurses: {'enabled' if wide_ncurses else 'disabled'}")
+    print(f"NCURSES_LIBS: {ncurses_libs}")
+    print(f"NCURSES_CFLAGS: {ncurses_cflags}")
+    print("Run 'make' to build and 'make install' to install.")
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

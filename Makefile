@@ -9,11 +9,11 @@ SRC=$(wildcard src/*.c)
 INCLUDE_DIR=include
 
 CFLAGS := -Wall -Wextra -O3 \
+	-I$(INCLUDE_DIR) \
     $(NCURSES_CFLAGS)
 ifeq ($(WIDE_NCURSES),yes)
 CFLAGS += -DWIDE_NCURSES
 endif
-INCFLAGS := -I$(INCLUDE_DIR)
 LDFLAGS := $(NCURSES_LIBS)
 
 .PHONY: build clean distclean run install
@@ -30,7 +30,7 @@ run: build
 	./itree
 
 itree: $(SRC)
-	gcc $(CFLAGS) $(INCFLAGS) $(SRC) -o itree $(LDFLAGS)
+	gcc $(CFLAGS) $(SRC) -o itree $(LDFLAGS)
 
 install: build
 	$(INSTALL) -d $(DESTDIR)$(BINDIR)
