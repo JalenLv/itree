@@ -95,7 +95,6 @@ def main() -> int:
     prefix_value: str = args.prefix
     wide_ncurses: bool = not args.disable_wide_ncurses
 
-
     env: dict = {}
     if wide_ncurses:
         brew_prefix: str = detect_brew_ncurses_prefix()
