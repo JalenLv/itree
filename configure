@@ -5,7 +5,6 @@ import sys
 import shutil
 import subprocess
 import argparse
-from typing import Optional
 
 def detect_brew_ncurses_prefix() -> str:
     if sys.platform != "darwin":
@@ -84,14 +83,19 @@ def detect_ncurses_libs_cflags(wide_ncurses: bool, env: dict) -> tuple[str, str]
 def main() -> int:
     parser = argparse.ArgumentParser(description="Configure the build system.")
     parser.add_argument("--prefix", default="/usr/local", help="Install prefix (default: /usr/local)")
-    parser.add_argument("--enable-wide-ncurses", action="store_true", help="Build with wide-character ncurses support")
+    parser.add_argument("--disable-wide-ncurses", action="store_true", help="Build without wide-character ncurses support")
     args = parser.parse_args()
 
     prefix_value: str = args.prefix
-    wide_ncurses: bool = args.enable_wide_ncurses
+    wide_ncurses: bool = not args.disable_wide_ncurses
 
-    brew_prefix: str = detect_brew_ncurses_prefix()
-    env: dict = prepare_env_for_pkg_config(brew_prefix)
+
+    env: dict = {}
+    if wide_ncurses:
+        brew_prefix: str = detect_brew_ncurses_prefix()
+        env = prepare_env_for_pkg_config(brew_prefix)
+    else:
+        env = os.environ.copy()
 
     ncurses_libs: str = ""
     ncurses_cflags: str = ""
