@@ -18,7 +18,7 @@ def detect_brew_ncurses_prefix() -> str:
     except subprocess.CalledProcessError as e:
         print("Error: Homebrew failed to detect ncurses prefix", file=sys.stderr)
         print(e.stderr.strip(), file=sys.stderr)
-        exit(e.returncode)
+        sys.exit(e.returncode)
 
 def prepare_env_for_pkg_config(brew_prefix: str) -> dict:
     env = os.environ.copy()
@@ -40,7 +40,7 @@ def detect_libs(name: str, env: dict) -> str:
             subprocess.run(["pkg-config", "--exists", name], env=env, check=True)
         except subprocess.CalledProcessError as e:
             print(f"Error: pkg-config could not find {name}", file=sys.stderr)
-            exit(e.returncode)
+            sys.exit(e.returncode)
         try:
             p = subprocess.run(["pkg-config", "--libs", name], capture_output=True, text=True, env=env, check=True)
             libs = p.stdout.strip()
@@ -48,7 +48,7 @@ def detect_libs(name: str, env: dict) -> str:
         except subprocess.CalledProcessError as e:
             print(f"Error: pkg-config failed to get libs for {name}", file=sys.stderr)
             print(e.stderr.strip(), file=sys.stderr)
-            exit(e.returncode)
+            sys.exit(e.returncode)
 
 def detect_cflags(name: str, env: dict) -> str:
     if shutil.which("pkg-config"):
@@ -56,7 +56,7 @@ def detect_cflags(name: str, env: dict) -> str:
             subprocess.run(["pkg-config", "--exists", name], env=env, check=True)
         except subprocess.CalledProcessError as e:
             print(f"Error: pkg-config could not find {name}", file=sys.stderr)
-            exit(e.returncode)
+            sys.exit(e.returncode)
         try:
             p = subprocess.run(["pkg-config", "--cflags", name], capture_output=True, text=True, env=env, check=True)
             cflags = p.stdout.strip()
@@ -64,7 +64,7 @@ def detect_cflags(name: str, env: dict) -> str:
         except subprocess.CalledProcessError as e:
             print(f"Error: pkg-config failed to get cflags for {name}", file=sys.stderr)
             print(e.stderr.strip(), file=sys.stderr)
-            exit(e.returncode)
+            sys.exit(e.returncode)
 
 def detect_ncurses_libs_cflags(wide_ncurses: bool, env: dict) -> tuple[str, str]:
     ncurses_libs: str = ""
