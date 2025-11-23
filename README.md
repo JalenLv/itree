@@ -2,7 +2,7 @@
 Interactive Tree - Interactively View the File Tree and Selectively Collapse/Expand Folders to Build a Desired Text-Based File Tree View just like Tree Does.
 
 ## Requirements
-- ncursesw (ncurses without wide character support)
+- ncursesw (ncurses if disabled wide character support)
 - make
 - python3
 - POSIX-compliant OS
