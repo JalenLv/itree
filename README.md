@@ -2,8 +2,9 @@
 Interactive Tree - Interactively View the File Tree and Selectively Collapse/Expand Folders to Build a Desired Text-Based File Tree View just like Tree Does.
 
 ## Requirements
-- ncurses (ncursesw if enabled wide character support)
+- ncursesw (ncurses if disabled wide character support)
 - make
+- python3
 - POSIX-compliant OS
 
 ## Build
@@ -12,7 +13,13 @@ Interactive Tree - Interactively View the File Tree and Selectively Collapse/Exp
 make
 make install
 ```
-Note that itree defaults to "narrow" ncurses. To enable wide character support, run `./configure --enable-wide-ncurses` instead.
+Note that itree defaults to wide ncurses. To disable wide character support, run `./configure --disable-wide-ncurses` instead.
+
+### MacOS
+MacOS comes with ncurses pre-installed, but without ncursesw (wide character support). Use Homebrew to install ncurses with wide character support:
+```bash
+brew install ncurses
+```
 
 ## Usage
 ```bash
