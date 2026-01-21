@@ -34,24 +34,27 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Open output file
-    FILE *output = NULL;
-    if (open_io(&args, &output) != 0) {
-        fprintf(stderr, "Error: Failed to open output file.\n");
-        DA_FREE(FileTree, &file_tree);
-        return 1;
-    }
+    if (args.no_print == 0) {
+        // Open output file
+        FILE *output = NULL;
+        if (open_io(&args, &output) != 0) {
+            fprintf(stderr, "Error: Failed to open output file.\n");
+            DA_FREE(FileTree, &file_tree);
+            return 1;
+        }
 
-    // Draw tree
-    if (draw_tree(&file_tree, output) != 0) {
-        fprintf(stderr, "Error: Failed to draw file tree.\n");
+        // Draw tree
+        if (draw_tree(&file_tree, output) != 0) {
+            fprintf(stderr, "Error: Failed to draw file tree.\n");
+            close_io(output);
+            DA_FREE(FileTree, &file_tree);
+            return 1;
+        }
+
         close_io(output);
-        DA_FREE(FileTree, &file_tree);
-        return 1;
     }
 
     // Clean up
-    close_io(output);
     DA_FREE(FileTree, &file_tree);
     return 0;
 }

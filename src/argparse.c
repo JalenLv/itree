@@ -6,19 +6,24 @@
 int parse_args(int argc, char *argv[], Args *args) {
     args->path = ".";
     args->output_file = NULL;
+    args->no_print = 0;
     args->show_help = 0;
 
     int opt;
     static struct option long_options[] = {
-        {"output", required_argument, 0, 'o'},
-        {"help",   no_argument,       0, 'h'},
+        {"output",      required_argument,  0, 'o'},
+        {"no-print",    no_argument,        0, 'n'},
+        {"help",        no_argument,        0, 'h'},
         {0, 0, 0, 0}
     };
     
-    while ((opt = getopt_long(argc, argv, "o:h", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "o:nh", long_options, NULL)) != -1) {
         switch (opt) {
             case 'o':
                 args->output_file = optarg;
+                break;
+            case 'n':
+                args->no_print = 1;
                 break;
             case 'h':
                 args->show_help = 1;
@@ -49,5 +54,6 @@ void print_help() {
     printf("       directory defaults to \".\" if not given.\n");
     printf("\nOptions:\n");
     printf("  -o, --output <file>    Specify output file (defaults to stdout)\n");
+    printf("  -n, --no-print         Disable printing\n");
     printf("  -h, --help             Show this help message\n");
 }

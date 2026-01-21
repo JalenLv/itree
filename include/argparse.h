@@ -6,11 +6,13 @@
  *
  * input_file:  Path to the input file (fall back to stdin).
  * output_file: Path to the output file (fall back to stdout).
+ * no_print:    Flag to indicate if printing is disabled.
  * show_help:   Flag to indicate if help message should be shown.
  */
 typedef struct {
     char *path;
     char *output_file;
+    int no_print;
     int show_help;
 } Args;
 
