@@ -4,8 +4,9 @@ config.mk
 # Clang cache
 .cache/
 
-# VSCode
+# IDE Configs
 .vscode/
+.idea/
 
 # Binary
 itree
