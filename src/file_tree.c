@@ -3,6 +3,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <stdio.h>
+#include <errno.h>
 
 int walk(FileTree *file_tree, const char *path, int depth) {
     DIR *d = opendir(path);
@@ -43,12 +45,17 @@ int walk(FileTree *file_tree, const char *path, int depth) {
                         is_dir = 1;
                     if (S_ISLNK(st.st_mode))
                         is_syml = 1;
+                } else {
+                    fprintf(stderr, "Warning: Skipping cuz could not lstat %s: \n", fullpath);
+                    perror("lstat");
+                    continue;
                 }
                 break;
             default:
                 // DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, etc.
-                fprintf(stderr, "Warning: Skipping unsupported file type: %s\n", fullpath);
-                return 1;
+                // See dirent.h for d_type details
+                fprintf(stderr, "Warning: Skipping unsupported file type: %s of type %d.\n", fullpath, ent->d_type);
+                continue;
         }
 
 
