@@ -1,0 +1,99 @@
+name: Build Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version label for artifact names"
+        required: false
+        default: "dev"
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.asset_os }}-${{ matrix.asset_arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            asset_os: linux
+            asset_arch: x86_64
+          - runner: macos-14
+            asset_os: macos
+            asset_arch: arm64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Resolve artifact version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.version }}" ]]; then
+            version="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            version="pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::7}"
+          else
+            version="${{ github.ref_name }}-${GITHUB_SHA::7}"
+          fi
+          safe_version="$(printf '%s' "$version" | tr '/ ' '--' | tr -cd '[:alnum:]._-')"
+          echo "value=${safe_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libncurses-dev
+
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install pkg-config ncurses
+
+      - name: Configure build
+        run: ./configure
+
+      - name: Build binary
+        run: make build
+
+      - name: Stage release files
+        shell: bash
+        run: |
+          pkg_dir="dist/itree"
+          mkdir -p "$pkg_dir"
+          cp itree README.md LICENSE "$pkg_dir/"
+
+      - name: Create release archive
+        shell: bash
+        run: |
+          archive="itree-${{ steps.version.outputs.value }}-${{ matrix.asset_os }}-${{ matrix.asset_arch }}.tar.gz"
+          tar -czf "$archive" -C dist itree
+          echo "ARCHIVE_NAME=$archive" >> "$GITHUB_ENV"
+
+      - name: Generate checksum
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            shasum -a 256 "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
+          else
+            sha256sum "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_os }}-${{ matrix.asset_arch }}
+          path: |
+            ${{ env.ARCHIVE_NAME }}
+            ${{ env.ARCHIVE_NAME }}.sha256
