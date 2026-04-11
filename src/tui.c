@@ -150,7 +150,7 @@ int run_tui(FileTree *file_tree) {
     while ((ch = getch()) != 'q') { // Press 'q' to quit
         switch (ch) {
             case KEY_DOWN:
-            case 'j':
+            case 'j': {
                 int is_window_subset = !(
                     app_state.visible_entries_head == 0
                     && next(file_tree, app_state.visible_entries_tail) == 0
@@ -172,9 +172,10 @@ int run_tui(FileTree *file_tree) {
                     app_state.selected_entry = next(file_tree, app_state.selected_entry);
                 }
                 break;
+            }
             case KEY_UP:
-            case 'k':
-                is_window_subset = !(
+            case 'k': {
+                int is_window_subset = !(
                     app_state.visible_entries_head == 0
                     && next(file_tree, app_state.visible_entries_tail) == 0
                 );
@@ -196,8 +197,9 @@ int run_tui(FileTree *file_tree) {
                     app_state.selected_entry = prev(file_tree, app_state.selected_entry);
                 }
                 break;
+            }
             case KEY_LEFT:
-            case 'h': // Collapse directory
+            case 'h': { // Collapse directory
                 FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state.all_entries, app_state.selected_entry);
                 if (current_node->type == DIRECTORY_NODE && !current_node->collapsed) {
                     current_node->collapsed = 1;
@@ -205,15 +207,17 @@ int run_tui(FileTree *file_tree) {
                     update_tail_given_head(&app_state, file_tree);
                 }
                 break;
+            }
             case KEY_RIGHT:
-            case 'l': // Expand directory
-                current_node = DA_GET_PTR(FileTreeNode *, app_state.all_entries, app_state.selected_entry);
+            case 'l': { // Expand directory
+                FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state.all_entries, app_state.selected_entry);
                 if (current_node->type == DIRECTORY_NODE && current_node->collapsed) {
                     current_node->collapsed = 0;
                     // Update visible fields
                     update_tail_given_head(&app_state, file_tree);
                 }
                 break;
+            }
             case KEY_RESIZE:
                 update_tail_given_head(&app_state, file_tree);
                 if (app_state.selected_entry > app_state.visible_entries_tail) {
