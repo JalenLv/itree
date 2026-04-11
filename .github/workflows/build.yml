@@ -42,10 +42,13 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.version }}" ]]; then
             version="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            version="pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::7}"
           else
             version="${{ github.ref_name }}-${GITHUB_SHA::7}"
           fi
-          echo "value=${version}" >> "$GITHUB_OUTPUT"
+          safe_version="$(printf '%s' "$version" | tr '/ ' '--' | tr -cd '[:alnum:]._-')"
+          echo "value=${safe_version}" >> "$GITHUB_OUTPUT"
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
