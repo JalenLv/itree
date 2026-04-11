@@ -17,8 +17,6 @@ on:
         type: boolean
         default: false
   push:
-    branches:
-      - chore-github-actions-release
     tags:
       - "v*"
 
@@ -50,8 +48,6 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             tag="${{ github.event.inputs.release_tag }}"
-          elif [[ "${{ github.ref_type }}" == "branch" ]]; then
-            tag="draft-test-${GITHUB_SHA::7}"
           else
             tag="${{ github.ref_name }}"
           fi
@@ -119,10 +115,6 @@ jobs:
             tag="${{ github.event.inputs.release_tag }}"
             draft="${{ github.event.inputs.draft_release }}"
             prerelease="${{ github.event.inputs.prerelease }}"
-          elif [[ "${{ github.ref_type }}" == "branch" ]]; then
-            tag="draft-test-${GITHUB_SHA::7}"
-            draft="true"
-            prerelease="false"
           else
             tag="${{ github.ref_name }}"
             draft="false"

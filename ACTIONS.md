@@ -2,28 +2,26 @@
 
 This repository includes two GitHub Actions workflows for build and release automation.
 
-## Build artifacts safely on a branch
+## Build artifacts in CI
 
-`.github/workflows/build.yml` is the safe test workflow. It builds `itree` on Linux and macOS, packages the binary with the project docs, and uploads the resulting archives as workflow artifacts only.
+`.github/workflows/build.yml` builds `itree` on Linux and macOS, packages the binary with the project docs, and uploads the resulting archives as workflow artifacts only.
 
-You can test it from a feature branch without touching the GitHub Releases page:
+It runs automatically on pushes to `main` and on pull requests targeting `main`. You can also run it manually from the **Actions** tab with `workflow_dispatch`.
 
-1. Push your branch.
-2. Open the **Actions** tab.
-3. Select **Build Artifacts**.
-4. Click **Run workflow** and choose your branch.
+1. Open the **Actions** tab.
+2. Select **Build Artifacts**.
+3. Click **Run workflow** and choose the ref if you want a manual run.
 
 The workflow accepts an optional `version` input used only for artifact filenames.
 
-## Test the release workflow without publishing a real release
+## Release workflow
 
 `.github/workflows/release.yml` supports both manual runs and tag-based releases.
 
-- pushes to `chore-github-actions-release` create draft test releases automatically
-- `workflow_dispatch` becomes available in the GitHub UI after the workflow exists on the default branch
+- `workflow_dispatch` is available in the GitHub UI because the workflow lives on the default branch
 - `push.tags: v*` is the production trigger for real releases.
 
-For safe pre-merge testing, push to `chore-github-actions-release`. That branch path forces `draft: true` and uses a non-production test tag like `draft-test-<sha>` so you can inspect the draft release without publishing a real release.
+For safe testing, run the release workflow manually and leave `draft_release` enabled. That creates a draft release so you can verify the uploaded assets before publishing anything publicly.
 
 ## Local packaging test
 
@@ -40,8 +38,7 @@ sha256sum itree-test-linux-x86_64.tar.gz
 
 ## Maintainer release flow
 
-1. Test `build.yml` from your branch until the artifacts look correct.
-2. Push `chore-github-actions-release` and verify that `release.yml` creates a draft test release.
-3. Inspect the draft release assets and rerun the branch workflow after fixes if needed.
-4. After the workflow is merged to the default branch, use `workflow_dispatch` for manual releases if needed.
-5. For a normal release, create and push a tag such as `v0.1.0`.
+1. Use `build.yml` to verify Linux and macOS artifacts in CI or from a manual run.
+2. Use `release.yml` manually with `draft_release` enabled when you want to inspect a draft release.
+3. Publish the draft if everything looks right, or rerun the workflow after fixes.
+4. For a normal release, create and push a tag such as `v0.1.0`.

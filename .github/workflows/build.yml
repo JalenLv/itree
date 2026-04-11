@@ -9,7 +9,10 @@ on:
         default: "dev"
   push:
     branches:
-      - chore-github-actions-release
+      - main
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
