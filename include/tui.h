@@ -4,11 +4,11 @@
 #include "file_tree.h"
 
 typedef struct {
-    FileTree *all_entries;          // All file tree entries
+    FileTree *all_entries;      // All file tree entries
 
-    size_t visible_entries_head;    // Index of the first visible entry
-    size_t visible_entries_tail;    // Index of the last visible entry
-    size_t selected_entry;          // Index of the currently selected entry
+    int visible_entries_head;   // Index of the first visible entry
+    int visible_entries_tail;   // Index of the last visible entry
+    int selected_entry;         // Index of the currently selected entry
 } AppState;
 
 /**
