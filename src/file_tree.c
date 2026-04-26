@@ -19,7 +19,10 @@ int walk(FileTree *file_tree, const char *path, int depth) {
             continue;
 
         char fullpath[4096];
-        snprintf(fullpath, sizeof(fullpath), "%s/%s", path, ent->d_name);
+        if (strlen(path) + strlen(ent->d_name) + 1 >= sizeof(fullpath)) {
+            fprintf(stderr, "Error: Path too long: %s/%s\n", path, ent->d_name);
+            ret = 1; goto CLEANUP;
+        } else snprintf(fullpath, sizeof(fullpath), "%s/%s", path, ent->d_name);
 
         int is_hidden = (ent->d_name[0] == '.');
         int is_reg    = 0;
@@ -87,10 +90,21 @@ CLEANUP:
 int create_file_tree_from_path(FileTree *file_tree, const char *path) {
     // Add root node
     FileTreeNode root;
+
     root.type = DIRECTORY_NODE;
+
+    // basename may modify the input path, so we copy it first
     char path_copy[4096];
-    snprintf(path_copy, sizeof(path_copy), "%s", path);
-    snprintf(root.name, sizeof(root.name), "%s", basename(path_copy));
+    if (strlen(path) >= sizeof(path_copy)) {
+        fprintf(stderr, "Error: Path too long: %s\n", path);
+        return 1;
+    } else snprintf(path_copy, sizeof(path_copy), "%s", path);
+    char *path_basename = basename(path_copy);
+    if (strlen(path_basename) >= sizeof(root.name)) {
+        fprintf(stderr, "Error: Path basename too long: %s\n", path_basename);
+        return 1;
+    } else snprintf(root.name, sizeof(root.name), "%s", basename(path_copy));
+
     root.collapsed = 0;
     root.depth = 0;
     root.target[0] = '\0';
