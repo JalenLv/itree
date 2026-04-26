@@ -36,6 +36,9 @@ int walk(FileTree *file_tree, const char *path, int depth) {
                     if (S_ISREG(st.st_mode)) is_reg  = 1;
                     if (S_ISDIR(st.st_mode)) is_dir  = 1;
                     if (S_ISLNK(st.st_mode)) is_syml = 1;
+                } else {
+                    perror("lstat");
+                    ret = 1; goto CLEANUP;
                 }
                 break;
             }
