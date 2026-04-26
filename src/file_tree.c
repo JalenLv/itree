@@ -49,7 +49,7 @@ int walk(FileTree *file_tree, const char *path, int depth) {
             default:
                 // DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, etc.
                 fprintf(stderr, "Warning: Skipping unsupported file type: %s\n", fullpath);
-                return 1;
+                continue;
         }
 
 
