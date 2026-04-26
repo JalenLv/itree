@@ -218,21 +218,24 @@ int run_tui(FileTree *file_tree) {
                 }
                 break;
             }
-            case KEY_RESIZE:
+            case KEY_RESIZE: {
                 update_tail_given_head(&app_state, file_tree);
                 if (app_state.selected_entry > app_state.visible_entries_tail) {
                     app_state.selected_entry = app_state.visible_entries_tail;
                 }
                 break;
-            case 'g': // Go to top
+            }
+            case 'g': { // Go to top
                 init_app_state(&app_state, file_tree);
                 break;
-            case 'G': // Go to bottom
+            }
+            case 'G': { // Go to bottom
                 app_state.visible_entries_tail = prev(file_tree, 0);
                 app_state.selected_entry = app_state.visible_entries_tail;
                 update_head_given_tail(&app_state, file_tree);
                 break;
-            case 4: // Ctrl-D
+            }
+            case 4: { // Ctrl-D
                 // Go down half a page
                 for (int i = 0; i < LINES / 2; ++i) {
                     if (next(file_tree, app_state.visible_entries_tail) != 0) {
@@ -249,7 +252,8 @@ int run_tui(FileTree *file_tree) {
                     }
                 }
                 break;
-            case 21: // Ctrl-U
+            }
+            case 21: { // Ctrl-U
                 // Go up half a page
                 for (int i = 0; i < LINES / 2; ++i) {
                     if (app_state.visible_entries_head != 0) {
@@ -266,8 +270,7 @@ int run_tui(FileTree *file_tree) {
                     }
                 }
                 break;
-            default:
-                break;
+            }
         }
         if (draw_visible_entries(&app_state) != 0) {
             fprintf(stderr, "Error: Failed to draw visible entries.\n");

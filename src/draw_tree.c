@@ -60,19 +60,23 @@ int draw_tree(FileTree *file_tree, FILE *output) {
 		}
 
 		switch (node->type) {
-			case FILE_NODE:
+			case FILE_NODE: {
 				fprintf(output, "%s\n", node->name);
 				break;
-			case DIRECTORY_NODE:
+			}
+			case DIRECTORY_NODE: {
 				fprintf(output, "%s/\n", node->name);
 				break;
-			case LINK_NODE:
+			}
+			case LINK_NODE: {
 				fprintf(output, "%s -> %s\n", node->name, node->target);
 				break;
-			default:
+			}
+			default: {
 				free(ancestor_last);
 				fprintf(stderr, "Error: Unknown node type encountered.\n");
 				return 1;
+			}
 		}
 
 		ancestor_last[depth] = is_last;

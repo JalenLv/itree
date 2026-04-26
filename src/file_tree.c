@@ -24,15 +24,18 @@ int walk(FileTree *file_tree, const char *path, int depth) {
         int is_dir = 0;
         int is_syml = 0;
         switch (ent->d_type) {
-            case DT_REG:
+            case DT_REG: {
                 is_reg = 1;
                 break;
-            case DT_DIR:
+            }
+            case DT_DIR: {
                 is_dir = 1;
                 break;
-            case DT_LNK:
+            }
+            case DT_LNK: {
                 is_syml = 1;
                 break;
+            }
             case DT_UNKNOWN: {
                 // must stat to know
                 struct stat st;
@@ -46,10 +49,11 @@ int walk(FileTree *file_tree, const char *path, int depth) {
                 }
                 break;
             }
-            default:
+            default: {
                 // DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, etc.
                 fprintf(stderr, "Warning: Skipping unsupported file type: %s\n", fullpath);
                 continue;
+            }
         }
 
 
