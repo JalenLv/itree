@@ -46,7 +46,7 @@ int walk(FileTree *file_tree, const char *path, int depth) {
             }
         }
 
-        FileTreeNode node;
+        FileTreeNode node = {0};
         if (is_reg)       node.type = FILE_NODE;
         else if (is_dir)  node.type = DIRECTORY_NODE;
         else if (is_syml) node.type = LINK_NODE;
