@@ -1,9 +1,20 @@
-- Add sorting: stable alphabetical order, probably directories first, then files, then links.
-- Add flags like --all, --max-depth N, --dirs-only, --ignore PATTERN, and --no-tui.
-- Add TUI help/status bar showing controls: j/k, h/l, g/G, Ctrl-D/U, q.
-- Add expand/collapse all commands: likely zM / zR, or simple H / L.
-- Add search/filter in the TUI with /pattern, then jump between matches with n / N.
-- Add output styles: Unicode tree, ASCII tree, JSON, and maybe Markdown code block.
-- Add file counts beside directories, e.g. src/ (5 files).
-- Add .gitignore-aware filtering. This would make the tool much more useful in real repos.
-- Add config defaults, maybe $XDG_CONFIG_HOME/itree/config, for ignored patterns and default collapse rules.
+`tree` has the following flags:
+
+```bash
+tree  [-acdfghilnpqrstuvxACDFJQNSUX]  [-L  level [-R]] [-H [-]baseHREF] [-T title] [-o filename]
+[-P pattern] [-I pattern] [--gitignore] [--gitfile[=]file]  [--matchdirs]  [--metafirst]  [--ig‐
+nore-case] [--nolinks] [--hintro[=]file] [--houtro[=]file] [--inodes] [--device] [--sort[=]name]
+[--dirsfirst]   [--filesfirst]   [--filelimit[=]number]   [--si]   [--du]  [--prune]  [--charset[=]X]
+[--timefmt[=]format]  [--fromfile]  [--fromtabfile]  [--fflinks]  [--info]   [--infofile[=]file]
+[--noreport]  [--hyperlink]  [--scheme[=]schema] [--authority[=]hostname] [--opt-toggle] [--ver‐
+sion] [--help] [--] [directory ...]
+```
+---
+
+- [ ] Add sorting: stable alphabetical order.
+- [ ] Add flags like -a/--all, --max-depth N, --dirs-only, --ignore PATTERN, and --no-tui.
+- [ ] Add search/filter in the TUI with /pattern, then jump between matches with n / N.
+- [ ] Add .gitignore-aware filtering. This would make the tool much more useful in real repos.
+- [ ] Add TUI help/status bar showing controls: j/k, h/l, g/G, Ctrl-D/U, q.
+- [ ] Add expand/collapse all commands: likely zM / zR, or simple H / L.
+- [ ] Add output styles: Unicode tree, ASCII tree, JSON, and maybe Markdown code block.
