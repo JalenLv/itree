@@ -1,0 +1,9 @@
+- Add sorting: stable alphabetical order, probably directories first, then files, then links.
+- Add flags like --all, --max-depth N, --dirs-only, --ignore PATTERN, and --no-tui.
+- Add TUI help/status bar showing controls: j/k, h/l, g/G, Ctrl-D/U, q.
+- Add expand/collapse all commands: likely zM / zR, or simple H / L.
+- Add search/filter in the TUI with /pattern, then jump between matches with n / N.
+- Add output styles: Unicode tree, ASCII tree, JSON, and maybe Markdown code block.
+- Add file counts beside directories, e.g. src/ (5 files).
+- Add .gitignore-aware filtering. This would make the tool much more useful in real repos.
+- Add config defaults, maybe $XDG_CONFIG_HOME/itree/config, for ignored patterns and default collapse rules.
