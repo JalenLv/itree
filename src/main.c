@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Run TUI
-    if (run_tui(&file_tree) != 0) {
+    if (!args.no_tui && run_tui(&file_tree) != 0) {
         fprintf(stderr, "Error: Failed in TUI.\n");
         DA_FREE(FileTree, &file_tree);
         return 1;

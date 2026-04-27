@@ -12,7 +12,8 @@ sion] [--help] [--] [directory ...]
 ---
 
 - [ ] Add sorting: stable alphabetical order.
-- [ ] Add flags like -a/--all, --max-depth N, --dirs-only, --ignore PATTERN, and --no-tui.
+- [ ] Add flags like -a/--all, --max-depth N, --dirs-only, and --ignore PATTERN.
+- [X] Add --no-tui flag.
 - [ ] Add search/filter in the TUI with /pattern, then jump between matches with n / N.
 - [ ] Add .gitignore-aware filtering. This would make the tool much more useful in real repos.
 - [ ] Add TUI help/status bar showing controls: j/k, h/l, g/G, Ctrl-D/U, q.

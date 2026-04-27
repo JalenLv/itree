@@ -6,12 +6,14 @@
  *
  * path:        Path to the directory to be treed (defaults to ".").
  * output_file: Path to the output file (fall back to stdout).
- * show_help:   Flag to indicate if help message should be shown.
+ * no_tui:      If TUI should be disabled.
+ * show_help:   If help message should be shown.
  */
 typedef struct {
-    char *path;
-    char *output_file;
-    int show_help;
+    char   *path;
+    char   *output_file;
+    int     no_tui;
+    int     show_help;
 } Args;
 
 /**
