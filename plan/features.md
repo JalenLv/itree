@@ -11,7 +11,7 @@ sion] [--help] [--] [directory ...]
 ```
 ---
 
-- [ ] Add sorting: stable alphabetical order.
+- [X] Add sorting: stable alphabetical order.
 - [ ] Add flags like -a/--all, --max-depth N, --dirs-only, and --ignore PATTERN.
 - [X] Add --no-tui flag.
 - [ ] Add search/filter in the TUI with /pattern, then jump between matches with n / N.
