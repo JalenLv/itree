@@ -82,8 +82,12 @@ int draw_visible_entries(AppState *app_state) {
             }
         } else {
             wchar_t wname[512];
-            mbstowcs(wname, node->name, 512);
-            printw("%s%ls%s\n", prefix, wname, suffix);
+            size_t name_ret = mbstowcs(wname, node->name, 512);
+            if (name_ret == (size_t)(-1)) {
+                printw("%s%s%s\n", prefix, node->name, suffix);
+            } else {
+                printw("%s%ls%s\n", prefix, wname, suffix);
+            }
         }
 #else
         printw("%s%s%s%s\n", prefix, node->name, suffix, (node->type == LINK_NODE ? node->target : ""));
@@ -103,32 +107,17 @@ int draw_visible_entries(AppState *app_state) {
 }
 
 int run_tui(FileTree *file_tree) {
-    // Init curses
 #ifdef WIDE_NCURSES
     setlocale(LC_ALL, "");
 #endif
-    // When input is piped, stdin is not connected to the terminal.
-    // We need to open /dev/tty directly for keyboard input.
-    FILE *tty_input = fopen("/dev/tty", "r");
-    if (tty_input == NULL) {
-        // Fallback: if we can't open /dev/tty, skip TUI mode
-        fprintf(stderr, "Error: Cannot open /dev/tty for keyboard input.\n");
-        return 1;
-    }
-    
-    // Initialize ncurses with the TTY input
-    SCREEN *screen = newterm(NULL, stdout, tty_input);
+    WINDOW *screen = initscr();
     if (screen == NULL) {
-        fprintf(stderr, "Error: Failed to initialize ncurses terminal.\n");
-        fclose(tty_input);
+        fprintf(stderr, "Error: Failed to initialize terminal UI.\n");
         return 1;
     }
-    set_term(screen);
-    
-    // Curses settings
-    keypad(stdscr, TRUE);
-    cbreak();
-    noecho();
+    keypad(stdscr, TRUE);       // Enable function keys and arrow keys
+    cbreak();                   // Disable line buffering
+    noecho();                   // Don't echo input
     nodelay(stdscr, FALSE);     // Blocking input
     curs_set(0);                // Hide cursor
     intrflush(stdscr, FALSE);   // Don't flush on interrupt keys
@@ -218,21 +207,24 @@ int run_tui(FileTree *file_tree) {
                 }
                 break;
             }
-            case KEY_RESIZE:
+            case KEY_RESIZE: {
                 update_tail_given_head(&app_state, file_tree);
                 if (app_state.selected_entry > app_state.visible_entries_tail) {
                     app_state.selected_entry = app_state.visible_entries_tail;
                 }
                 break;
-            case 'g': // Go to top
+            }
+            case 'g': { // Go to top
                 init_app_state(&app_state, file_tree);
                 break;
-            case 'G': // Go to bottom
+            }
+            case 'G': { // Go to bottom
                 app_state.visible_entries_tail = prev(file_tree, 0);
                 app_state.selected_entry = app_state.visible_entries_tail;
                 update_head_given_tail(&app_state, file_tree);
                 break;
-            case 4: // Ctrl-D
+            }
+            case 4: { // Ctrl-D
                 // Go down half a page
                 for (int i = 0; i < LINES / 2; ++i) {
                     if (next(file_tree, app_state.visible_entries_tail) != 0) {
@@ -249,7 +241,8 @@ int run_tui(FileTree *file_tree) {
                     }
                 }
                 break;
-            case 21: // Ctrl-U
+            }
+            case 21: { // Ctrl-U
                 // Go up half a page
                 for (int i = 0; i < LINES / 2; ++i) {
                     if (app_state.visible_entries_head != 0) {
@@ -266,8 +259,7 @@ int run_tui(FileTree *file_tree) {
                     }
                 }
                 break;
-            default:
-                break;
+            }
         }
         if (draw_visible_entries(&app_state) != 0) {
             fprintf(stderr, "Error: Failed to draw visible entries.\n");
@@ -276,7 +268,5 @@ int run_tui(FileTree *file_tree) {
     }
 
     endwin();
-    delscreen(screen);
-    fclose(tty_input);
     return 0;
 }

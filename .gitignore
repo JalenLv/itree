@@ -1,6 +1,9 @@
 # Configuration files
 config.mk
 
+# Agents' files
+.codex
+
 # Clang cache
 .cache/
 

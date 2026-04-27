@@ -17,17 +17,21 @@ int parse_args(int argc, char *argv[], Args *args) {
     
     while ((opt = getopt_long(argc, argv, "o:h", long_options, NULL)) != -1) {
         switch (opt) {
-            case 'o':
+            case 'o': {
                 args->output_file = optarg;
                 break;
-            case 'h':
+            }
+            case 'h': {
                 args->show_help = 1;
                 break;
-            case '?':
+            }
+            case '?': {
                 // getopt_long already printed error message
                 return 1;
-            default:
+            }
+            default: {
                 return 1;
+            }
         }
     }
     

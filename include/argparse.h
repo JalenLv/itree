@@ -4,7 +4,7 @@
 /**
  * Structure to hold command line arguments.
  *
- * input_file:  Path to the input file (fall back to stdin).
+ * path:        Path to the directory to be treed (defaults to ".").
  * output_file: Path to the output file (fall back to stdout).
  * show_help:   Flag to indicate if help message should be shown.
  */
