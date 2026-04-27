@@ -103,32 +103,13 @@ int draw_visible_entries(AppState *app_state) {
 }
 
 int run_tui(FileTree *file_tree) {
-    // Init curses
 #ifdef WIDE_NCURSES
     setlocale(LC_ALL, "");
 #endif
-    // When input is piped, stdin is not connected to the terminal.
-    // We need to open /dev/tty directly for keyboard input.
-    FILE *tty_input = fopen("/dev/tty", "r");
-    if (tty_input == NULL) {
-        // Fallback: if we can't open /dev/tty, skip TUI mode
-        fprintf(stderr, "Error: Cannot open /dev/tty for keyboard input.\n");
-        return 1;
-    }
-    
-    // Initialize ncurses with the TTY input
-    SCREEN *screen = newterm(NULL, stdout, tty_input);
-    if (screen == NULL) {
-        fprintf(stderr, "Error: Failed to initialize ncurses terminal.\n");
-        fclose(tty_input);
-        return 1;
-    }
-    set_term(screen);
-    
-    // Curses settings
-    keypad(stdscr, TRUE);
-    cbreak();
-    noecho();
+    initscr();
+    keypad(stdscr, TRUE);       // Enable function keys and arrow keys
+    cbreak();                   // Disable line buffering
+    noecho();                   // Don't echo input
     nodelay(stdscr, FALSE);     // Blocking input
     curs_set(0);                // Hide cursor
     intrflush(stdscr, FALSE);   // Don't flush on interrupt keys
@@ -279,7 +260,5 @@ int run_tui(FileTree *file_tree) {
     }
 
     endwin();
-    delscreen(screen);
-    fclose(tty_input);
     return 0;
 }
