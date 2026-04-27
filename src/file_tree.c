@@ -103,7 +103,7 @@ int create_file_tree_from_path(FileTree *file_tree, const char *path) {
     if (strlen(path_basename) >= sizeof(root.name)) {
         fprintf(stderr, "Error: Path basename too long: %s\n", path_basename);
         return 1;
-    } else snprintf(root.name, sizeof(root.name), "%s", basename(path_copy));
+    } else snprintf(root.name, sizeof(root.name), "%s", path_basename);
 
     root.collapsed = 0;
     root.depth = 0;
