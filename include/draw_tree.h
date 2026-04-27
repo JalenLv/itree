@@ -3,6 +3,8 @@
 
 #include "file_tree.h"
 
+#include <stdio.h>
+
 /**
  * Draws the file tree to the given output file.
  */
