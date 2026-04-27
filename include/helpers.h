@@ -79,6 +79,16 @@ char *concat_NULL(const char *str1, ...);
 	} 																															\
 } while (0)
 
+// Sort a range of items in the dynamic array
+#define DA_SORT_RANGE(T, arr, start, end, cmp) do { 								\
+	if ((start) >= 0 && (end) <= (arr)->count && (start) < (end)) { 				\
+		qsort(&(arr)->items[start], (size_t)((end) - (start)), sizeof(T), cmp);		\
+	} 																				\
+} while (0)
+
+// Sort the entire dynamic array
+#define DA_SORT(T, arr, cmp) DA_SORT_RANGE(T, arr, 0, (arr)->count, cmp)
+
 /**
  * Dynamic deque macros.
  */

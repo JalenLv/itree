@@ -23,7 +23,7 @@ typedef struct FileTreeNode {
 } FileTreeNode;
 
 /**
- * Creates a file tree from the given path.
+ * Creates a sorted file tree from the given path.
  * All directories are expanded (collapsed = 0) initially.
  * The collapsed field is 0 for file nodes.
  * 
