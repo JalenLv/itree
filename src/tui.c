@@ -110,7 +110,11 @@ int run_tui(FileTree *file_tree) {
 #ifdef WIDE_NCURSES
     setlocale(LC_ALL, "");
 #endif
-    initscr();
+    WINDOW *screen = initscr();
+    if (screen == NULL) {
+        fprintf(stderr, "Error: Failed to initialize terminal UI.\n");
+        return 1;
+    }
     keypad(stdscr, TRUE);       // Enable function keys and arrow keys
     cbreak();                   // Disable line buffering
     noecho();                   // Don't echo input
