@@ -82,8 +82,12 @@ int draw_visible_entries(AppState *app_state) {
             }
         } else {
             wchar_t wname[512];
-            mbstowcs(wname, node->name, 512);
-            printw("%s%ls%s\n", prefix, wname, suffix);
+            size_t name_ret = mbstowcs(wname, node->name, 512);
+            if (name_ret == (size_t)(-1)) {
+                printw("%s%s%s\n", prefix, node->name, suffix);
+            } else {
+                printw("%s%ls%s\n", prefix, wname, suffix);
+            }
         }
 #else
         printw("%s%s%s%s\n", prefix, node->name, suffix, (node->type == LINK_NODE ? node->target : ""));
