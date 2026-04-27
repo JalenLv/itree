@@ -14,7 +14,7 @@ int entry_cmp(const void *a, const void *b) {
     );
 }
 
-int walk(FileTree *file_tree, const char *path, int depth, int offset) {
+int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_hidden) {
     DIR *d = opendir(path);
     if (d == NULL) {
         perror("opendir");
@@ -35,6 +35,7 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset) {
         } else snprintf(fullpath, sizeof(fullpath), "%s/%s", path, ent->d_name);
 
         int is_hidden = (ent->d_name[0] == '.');
+        if (!show_hidden && is_hidden) continue;
         int is_reg    = 0;
         int is_dir    = 0;
         int is_syml   = 0;
@@ -99,7 +100,7 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset) {
                 ret = 1; goto CLEANUP;
             } else snprintf(child_path, sizeof(child_path), "%s/%s", path, node->name);
 
-            if (walk(file_tree, child_path, depth + 1, offset + i + 1) != 0) {
+            if (walk(file_tree, child_path, depth + 1, offset + i + 1, show_hidden) != 0) {
                 ret = 1; goto CLEANUP;
             }
         }
@@ -111,7 +112,13 @@ CLEANUP:
     return ret;
 }
 
-int create_file_tree_from_path(FileTree *file_tree, const char *path) {
+int create_file_tree_from_path(FileTree *file_tree, const Args *args) {
+    char *path = args->path;
+    if (path == NULL) {
+        fprintf(stderr, "Error: Path is required.\n");
+        return 1;
+    }
+
     // Add root node
     FileTreeNode root;
 
@@ -135,7 +142,7 @@ int create_file_tree_from_path(FileTree *file_tree, const char *path) {
     DA_PUSH(FileTreeNode, file_tree, root);
 
     // Iterate over directory entries
-    if (walk(file_tree, path, 1, 1) != 0) {
+    if (walk(file_tree, path, 1, 1, args->show_hidden) != 0) {
         DA_FREE(FileTreeNode, file_tree);
         return 1;
     }

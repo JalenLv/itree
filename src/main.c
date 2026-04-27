@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
 
     // Create file tree
     FileTree file_tree = {0};
-    if (create_file_tree_from_path(&file_tree, args.path)) {
+    if (create_file_tree_from_path(&file_tree, &args)) {
         fprintf(stderr, "Error: Failed to create file tree from path: %s\n", args.path);
         return 1;
     }
