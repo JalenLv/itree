@@ -23,7 +23,7 @@ typedef struct FileTreeNode {
 } FileTreeNode;
 
 /**
- * Creates a file tree from the given path.
+ * Creates a sorted file tree from the given path.
  * All directories are expanded (collapsed = 0) initially.
  * The collapsed field is 0 for file nodes.
  * 
@@ -31,7 +31,7 @@ typedef struct FileTreeNode {
  * `file_tree` is empty if fails and is populated if succeeds.
  * The caller is responsible for freeing the returned tree.
  */
-int create_file_tree_from_path(FileTree *file_tree, const char *path);
+int create_file_tree_from_path(FileTree *file_tree, const Args *args);
 
 /**
  * Given a file tree and a visible node index, returns the next visible index.

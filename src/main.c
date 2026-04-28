@@ -22,13 +22,13 @@ int main(int argc, char *argv[]) {
 
     // Create file tree
     FileTree file_tree = {0};
-    if (create_file_tree_from_path(&file_tree, args.path)) {
+    if (create_file_tree_from_path(&file_tree, &args)) {
         fprintf(stderr, "Error: Failed to create file tree from path: %s\n", args.path);
         return 1;
     }
 
     // Run TUI
-    if (run_tui(&file_tree) != 0) {
+    if (!args.no_tui && run_tui(&file_tree) != 0) {
         fprintf(stderr, "Error: Failed in TUI.\n");
         DA_FREE(FileTree, &file_tree);
         return 1;
