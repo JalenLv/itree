@@ -78,45 +78,6 @@ jobs:
       - name: Run tests
         run: make test
 
-      - name: Diagnose terminfo and runtime env on failure
-        if: failure()
-        shell: bash
-        run: |
-          set +e
-          echo "::group::Environment"
-          echo "TERM=${TERM:-unset}"
-          echo "TERMINFO=${TERMINFO:-unset}"
-          echo "TERMINFO_DIRS=${TERMINFO_DIRS:-unset}"
-          echo "LC_ALL=${LC_ALL:-unset}"
-          echo "PATH=$PATH"
-          echo "RUNNER_OS=$RUNNER_OS"
-          echo "::endgroup::"
-
-          echo "::group::Tool versions"
-          which infocmp tic tput
-          infocmp -V
-          python --version
-          python -c "import pyte, pexpect, sys; print('pyte', getattr(pyte, '__version__', '?')); print('pexpect', pexpect.__version__)"
-          echo "::endgroup::"
-
-          echo "::group::Available terminfo files for xterm-256color"
-          # Show every xterm-256color terminfo entry visible to ncurses
-          for d in /usr/share/terminfo /opt/homebrew/Cellar/ncurses/*/share/terminfo /opt/homebrew/share/terminfo /etc/terminfo /lib/terminfo; do
-            for sub in x 78; do
-              f="$d/$sub/xterm-256color"
-              [[ -f "$f" ]] && echo "FOUND: $f ($(wc -c < "$f") bytes)"
-            done
-          done
-          echo "::endgroup::"
-
-          echo "::group::Resolved xterm-256color (infocmp)"
-          infocmp xterm-256color 2>&1 | head -80
-          echo "::endgroup::"
-
-          echo "::group::Raw byte capture of failing dump test"
-          python tests/dumps/_diagnose.py
-          echo "::endgroup::"
-
       - name: Stage release files
         shell: bash
         run: |
