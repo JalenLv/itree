@@ -1,0 +1,5 @@
+flat/
+├── a.txt
+├── b.txt
+├── c.txt
+└── d.txt
