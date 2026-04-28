@@ -58,6 +58,7 @@ test-integration: itree
 	./tests/integration/run.sh
 
 test-dumps: itree
+	python3 tests/dumps/test_rep.py
 	./tests/dumps/runner.py
 
 test: test-unit test-integration test-dumps

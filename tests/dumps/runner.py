@@ -37,6 +37,10 @@ except ImportError as e:
           f"Install with: pip install pyte pexpect", file=sys.stderr)
     sys.exit(0)
 
+# Sibling import: tests/dumps/_rep.py
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _rep import RepExpandingByteStream  # noqa: E402
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 ITREE = os.environ.get("ITREE", os.path.join(ROOT, "itree"))
 CASES_DIR = os.path.join(ROOT, "tests", "dumps", "cases")
@@ -89,7 +93,9 @@ def run_case(case_path):
     })
 
     screen = pyte.Screen(COLS, ROWS)
-    stream = pyte.ByteStream(screen)
+    # Wrap pyte's ByteStream so CSI REP (which pyte 0.8.2 ignores) is
+    # expanded into literal repeated chars before pyte sees them.
+    stream = RepExpandingByteStream(pyte.ByteStream(screen))
 
     child = pexpect.spawn(ITREE, extra_argv + [fixture], dimensions=(ROWS, COLS),
                           env=env, encoding=None, timeout=2)

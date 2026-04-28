@@ -15,6 +15,9 @@ except ImportError as e:
     print(f"diagnostic skipped: {e}", file=sys.stderr)
     sys.exit(0)
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _rep import RepExpandingByteStream  # noqa: E402
+
 ROWS, COLS = 24, 80
 ITREE = os.environ.get("ITREE", "./itree")
 
@@ -27,7 +30,7 @@ env.update({
 })
 
 screen = pyte.Screen(COLS, ROWS)
-stream = pyte.ByteStream(screen)
+stream = RepExpandingByteStream(pyte.ByteStream(screen))
 captured = bytearray()
 
 
