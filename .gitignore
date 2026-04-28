@@ -12,6 +12,7 @@ config.mk
 
 # Binary
 itree
+tests/unit/runner
 
 # Prerequisites
 *.d
