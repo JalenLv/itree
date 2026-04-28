@@ -1,0 +1,3 @@
+with_link/
+├── link_to_target -> target.txt
+└── target.txt

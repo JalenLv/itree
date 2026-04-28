@@ -1,0 +1,8 @@
+nested/
+├── alpha/
+│   ├── one.txt
+│   └── two.txt
+├── beta/
+│   └── nested_deep/
+│       └── leaf.txt
+└── gamma.txt
