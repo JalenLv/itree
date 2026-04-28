@@ -17,4 +17,18 @@ typedef struct {
  */
 int run_tui(FileTree *file_tree);
 
+/**
+ * Pure-logic helpers exposed for unit testing. These do not call ncurses;
+ * the `lines` parameter is the visible row count (LINES at runtime).
+ */
+void update_tail_given_head(AppState *app_state, FileTree *file_tree, int lines);
+void update_head_given_tail(AppState *app_state, FileTree *file_tree, int lines);
+int  init_app_state(AppState *app_state, FileTree *file_tree, int lines);
+
+/**
+ * Handles a single keystroke against the application state.
+ * Returns 0 to keep running, 1 to quit.
+ */
+int handle_key(AppState *app_state, FileTree *file_tree, int ch, int lines);
+
 #endif // TUI_H

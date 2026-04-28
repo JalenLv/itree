@@ -1,0 +1,24 @@
+    v nested/
+->      > alpha/
+        v beta/
+            v nested_deep/
+                  leaf.txt
+          gamma.txt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

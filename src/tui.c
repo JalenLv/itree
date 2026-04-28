@@ -12,35 +12,166 @@
 #include "tui.h"
 #include "helpers.h"
 
-void update_tail_given_head(AppState *app_state, FileTree *file_tree) {
+void update_tail_given_head(AppState *app_state, FileTree *file_tree, int lines) {
     int vis_ent_cnt = 0;
     int i = app_state->visible_entries_head, next_i;
     while ((next_i = next(file_tree, i)) != 0) {
-        if (++vis_ent_cnt >= LINES) break;
+        if (++vis_ent_cnt >= lines) break;
         i = next_i;
     }
     app_state->visible_entries_tail = i;
 }
 
-void update_head_given_tail(AppState *app_state, FileTree *file_tree) {
+void update_head_given_tail(AppState *app_state, FileTree *file_tree, int lines) {
     int vis_ent_cnt = 0;
     int i = app_state->visible_entries_tail;
     while (i != 0) {
-        if (++vis_ent_cnt >= LINES) break;
+        if (++vis_ent_cnt >= lines) break;
         i = prev(file_tree, i);
     }
     app_state->visible_entries_head = i;
 }
 
-int init_app_state(AppState *app_state, FileTree *file_tree) {
+int init_app_state(AppState *app_state, FileTree *file_tree, int lines) {
     // Init all entries
     app_state->all_entries = file_tree;
 
     // Init visible related fields
     app_state->visible_entries_head = 0;
     app_state->selected_entry = 0;
-    update_tail_given_head(app_state, file_tree);
+    update_tail_given_head(app_state, file_tree, lines);
 
+    return 0;
+}
+
+int handle_key(AppState *app_state, FileTree *file_tree, int ch, int lines) {
+    switch (ch) {
+        case 'q': {
+            return 1;
+        }
+        case KEY_DOWN:
+        case 'j': {
+            int is_window_subset = !(
+                app_state->visible_entries_head == 0
+                && next(file_tree, app_state->visible_entries_tail) == 0
+            );
+            int is_selected_at_bottom = (app_state->selected_entry == app_state->visible_entries_tail);
+            if (is_window_subset && is_selected_at_bottom) {
+                // Slide window down
+                if (next(file_tree, app_state->visible_entries_tail) != 0) {
+                    // If not at the end
+                    app_state->visible_entries_head = next(file_tree, app_state->visible_entries_head);
+                    app_state->visible_entries_tail = next(file_tree, app_state->visible_entries_tail);
+                    app_state->selected_entry = app_state->visible_entries_tail;
+                } else {
+                    // At the end, loop back to top
+                    init_app_state(app_state, file_tree, lines);
+                }
+            } else {
+                // Move selection down
+                app_state->selected_entry = next(file_tree, app_state->selected_entry);
+            }
+            break;
+        }
+        case KEY_UP:
+        case 'k': {
+            int is_window_subset = !(
+                app_state->visible_entries_head == 0
+                && next(file_tree, app_state->visible_entries_tail) == 0
+            );
+            int is_selected_at_top = (app_state->selected_entry == app_state->visible_entries_head);
+            if (is_window_subset && is_selected_at_top) {
+                // Slide window up
+                if (app_state->visible_entries_head != 0) {
+                    // If not at the start
+                    app_state->visible_entries_head = prev(file_tree, app_state->visible_entries_head);
+                    update_tail_given_head(app_state, file_tree, lines);
+                    app_state->selected_entry = app_state->visible_entries_head;
+                } else {
+                    // At the start, go to bottom
+                    app_state->visible_entries_tail = prev(file_tree, 0);
+                    app_state->selected_entry = app_state->visible_entries_tail;
+                    update_head_given_tail(app_state, file_tree, lines);
+                }
+            } else {
+                app_state->selected_entry = prev(file_tree, app_state->selected_entry);
+            }
+            break;
+        }
+        case KEY_LEFT:
+        case 'h': { // Collapse directory
+            FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, app_state->selected_entry);
+            if (current_node->type == DIRECTORY_NODE && !current_node->collapsed) {
+                current_node->collapsed = 1;
+                // Update visible fields
+                update_tail_given_head(app_state, file_tree, lines);
+            }
+            break;
+        }
+        case KEY_RIGHT:
+        case 'l': { // Expand directory
+            FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, app_state->selected_entry);
+            if (current_node->type == DIRECTORY_NODE && current_node->collapsed) {
+                current_node->collapsed = 0;
+                // Update visible fields
+                update_tail_given_head(app_state, file_tree, lines);
+            }
+            break;
+        }
+        case KEY_RESIZE: {
+            update_tail_given_head(app_state, file_tree, lines);
+            if (app_state->selected_entry > app_state->visible_entries_tail) {
+                app_state->selected_entry = app_state->visible_entries_tail;
+            }
+            break;
+        }
+        case 'g': { // Go to top
+            init_app_state(app_state, file_tree, lines);
+            break;
+        }
+        case 'G': { // Go to bottom
+            app_state->visible_entries_tail = prev(file_tree, 0);
+            app_state->selected_entry = app_state->visible_entries_tail;
+            update_head_given_tail(app_state, file_tree, lines);
+            break;
+        }
+        case 4: { // Ctrl-D
+            // Go down half a page
+            for (int i = 0; i < lines / 2; ++i) {
+                if (next(file_tree, app_state->visible_entries_tail) != 0) {
+                    // If not at the end, slide window down
+                    // Keep selected entry relative stationary to the window
+                    app_state->visible_entries_head = next(file_tree, app_state->visible_entries_head);
+                    app_state->visible_entries_tail = next(file_tree, app_state->visible_entries_tail);
+                    app_state->selected_entry = next(file_tree, app_state->selected_entry);
+                } else {
+                    // At the end, slide selected entry down only
+                    if (next(file_tree, app_state->selected_entry) != 0) {
+                        app_state->selected_entry = next(file_tree, app_state->selected_entry);
+                    }
+                }
+            }
+            break;
+        }
+        case 21: { // Ctrl-U
+            // Go up half a page
+            for (int i = 0; i < lines / 2; ++i) {
+                if (app_state->visible_entries_head != 0) {
+                    // If not at the start, slide window up
+                    // Keep selected entry relative stationary to the window
+                    app_state->visible_entries_head = prev(file_tree, app_state->visible_entries_head);
+                    update_tail_given_head(app_state, file_tree, lines);
+                    app_state->selected_entry = prev(file_tree, app_state->selected_entry);
+                } else {
+                    // At the start, slide selected entry up only
+                    if (app_state->selected_entry != 0) {
+                        app_state->selected_entry = prev(file_tree, app_state->selected_entry);
+                    }
+                }
+            }
+            break;
+        }
+    }
     return 0;
 }
 
@@ -124,7 +255,7 @@ int run_tui(FileTree *file_tree) {
     scrollok(stdscr, FALSE);    // Disable scrolling
 
     AppState app_state = {0};
-    if (init_app_state(&app_state, file_tree) != 0) {
+    if (init_app_state(&app_state, file_tree, LINES) != 0) {
         fprintf(stderr, "Error: Failed to initialize application state.\n");
         return 1;
     }
@@ -136,131 +267,9 @@ int run_tui(FileTree *file_tree) {
 
     // Main loop
     int ch;
-    while ((ch = getch()) != 'q') { // Press 'q' to quit
-        switch (ch) {
-            case KEY_DOWN:
-            case 'j': {
-                int is_window_subset = !(
-                    app_state.visible_entries_head == 0
-                    && next(file_tree, app_state.visible_entries_tail) == 0
-                );
-                int is_selected_at_bottom = (app_state.selected_entry == app_state.visible_entries_tail);
-                if (is_window_subset && is_selected_at_bottom) {
-                    // Slide window down
-                    if (next(file_tree, app_state.visible_entries_tail) != 0) {
-                        // If not at the end
-                        app_state.visible_entries_head = next(file_tree, app_state.visible_entries_head);
-                        app_state.visible_entries_tail = next(file_tree, app_state.visible_entries_tail);
-                        app_state.selected_entry = app_state.visible_entries_tail;
-                    } else {
-                        // At the end, loop back to top
-                        init_app_state(&app_state, file_tree);
-                    }
-                } else {
-                    // Move selection down
-                    app_state.selected_entry = next(file_tree, app_state.selected_entry);
-                }
-                break;
-            }
-            case KEY_UP:
-            case 'k': {
-                int is_window_subset = !(
-                    app_state.visible_entries_head == 0
-                    && next(file_tree, app_state.visible_entries_tail) == 0
-                );
-                int is_selected_at_top = (app_state.selected_entry == app_state.visible_entries_head);
-                if (is_window_subset && is_selected_at_top) {
-                    // Slide window up
-                    if (app_state.visible_entries_head != 0) {
-                        // If not at the start
-                        app_state.visible_entries_head = prev(file_tree, app_state.visible_entries_head);
-                        update_tail_given_head(&app_state, file_tree);
-                        app_state.selected_entry = app_state.visible_entries_head;
-                    } else {
-                        // At the start, go to bottom
-                        app_state.visible_entries_tail = prev(file_tree, 0);
-                        app_state.selected_entry = app_state.visible_entries_tail;
-                        update_head_given_tail(&app_state, file_tree);
-                    }
-                } else {
-                    app_state.selected_entry = prev(file_tree, app_state.selected_entry);
-                }
-                break;
-            }
-            case KEY_LEFT:
-            case 'h': { // Collapse directory
-                FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state.all_entries, app_state.selected_entry);
-                if (current_node->type == DIRECTORY_NODE && !current_node->collapsed) {
-                    current_node->collapsed = 1;
-                    // Update visible fields
-                    update_tail_given_head(&app_state, file_tree);
-                }
-                break;
-            }
-            case KEY_RIGHT:
-            case 'l': { // Expand directory
-                FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state.all_entries, app_state.selected_entry);
-                if (current_node->type == DIRECTORY_NODE && current_node->collapsed) {
-                    current_node->collapsed = 0;
-                    // Update visible fields
-                    update_tail_given_head(&app_state, file_tree);
-                }
-                break;
-            }
-            case KEY_RESIZE: {
-                update_tail_given_head(&app_state, file_tree);
-                if (app_state.selected_entry > app_state.visible_entries_tail) {
-                    app_state.selected_entry = app_state.visible_entries_tail;
-                }
-                break;
-            }
-            case 'g': { // Go to top
-                init_app_state(&app_state, file_tree);
-                break;
-            }
-            case 'G': { // Go to bottom
-                app_state.visible_entries_tail = prev(file_tree, 0);
-                app_state.selected_entry = app_state.visible_entries_tail;
-                update_head_given_tail(&app_state, file_tree);
-                break;
-            }
-            case 4: { // Ctrl-D
-                // Go down half a page
-                for (int i = 0; i < LINES / 2; ++i) {
-                    if (next(file_tree, app_state.visible_entries_tail) != 0) {
-                        // If not at the end, slide window down
-                        // Keep selected entry relative stationary to the window
-                        app_state.visible_entries_head = next(file_tree, app_state.visible_entries_head);
-                        app_state.visible_entries_tail = next(file_tree, app_state.visible_entries_tail);
-                        app_state.selected_entry = next(file_tree, app_state.selected_entry);
-                    } else {
-                        // At the end, slide selected entry down only
-                        if (next(file_tree, app_state.selected_entry) != 0) {
-                            app_state.selected_entry = next(file_tree, app_state.selected_entry);
-                        }
-                    }
-                }
-                break;
-            }
-            case 21: { // Ctrl-U
-                // Go up half a page
-                for (int i = 0; i < LINES / 2; ++i) {
-                    if (app_state.visible_entries_head != 0) {
-                        // If not at the start, slide window up
-                        // Keep selected entry relative stationary to the window
-                        app_state.visible_entries_head = prev(file_tree, app_state.visible_entries_head);
-                        update_tail_given_head(&app_state, file_tree);
-                        app_state.selected_entry = prev(file_tree, app_state.selected_entry);
-                    } else {
-                        // At the start, slide selected entry up only
-                        if (app_state.selected_entry != 0) {
-                            app_state.selected_entry = prev(file_tree, app_state.selected_entry);
-                        }
-                    }
-                }
-                break;
-            }
-        }
+    while (1) {
+        ch = getch();
+        if (handle_key(&app_state, file_tree, ch, LINES) != 0) break;
         if (draw_visible_entries(&app_state) != 0) {
             fprintf(stderr, "Error: Failed to draw visible entries.\n");
             return 1;

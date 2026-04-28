@@ -67,6 +67,17 @@ jobs:
       - name: Build binary
         run: make build
 
+      - name: Set up Python (for TUI dump tests)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python test dependencies
+        run: python -m pip install --upgrade pip pyte pexpect
+
+      - name: Run tests
+        run: make test
+
       - name: Stage release files
         shell: bash
         run: |

@@ -12,6 +12,11 @@ config.mk
 
 # Binary
 itree
+tests/unit/runner
+
+# Python bytecode caches in tests/dumps
+__pycache__/
+*.pyc
 
 # Prerequisites
 *.d
