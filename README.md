@@ -1,6 +1,11 @@
 # itree
 Interactive Tree - Interactively View the File Tree and Selectively Collapse/Expand Folders to Build a Desired Text-Based File Tree View just like Tree Does.
 
+## Usage
+```bash
+itree [directory] [options]
+```
+
 ## Requirements
 - POSIX-compliant OS
 - pkg-config
@@ -16,19 +21,14 @@ make install
 ```
 Note that itree defaults to wide ncurses. To disable wide character support, run `./configure --disable-wide-ncurses` instead.
 
-## Tests
-```bash
-pip install pyte pexpect
-make test
-```
-
 ### MacOS
 MacOS comes with ncurses pre-installed, but without ncursesw (wide character support). Use Homebrew to install ncurses with wide character support:
 ```bash
 brew install ncurses
 ```
 
-## Usage
+## Tests
 ```bash
-itree [directory] [options]
+pip install pyte pexpect
+make test
 ```
