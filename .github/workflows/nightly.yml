@@ -1,0 +1,121 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.asset_os }}-${{ matrix.asset_arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            asset_os: linux
+            asset_arch: x86_64
+          - runner: macos-14
+            asset_os: macos
+            asset_arch: arm64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libncurses-dev
+
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install pkg-config ncurses
+
+      - name: Set up Python (for TUI dump tests)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python test dependencies
+        run: python -m pip install --upgrade pip pyte pexpect
+
+      - name: Build and test (release)
+        run: |
+          ./configure
+          make build
+          make test
+
+      - name: Package release binary
+        shell: bash
+        run: |
+          pkg_dir="dist/release"
+          mkdir -p "$pkg_dir"
+          cp itree README.md LICENSE "$pkg_dir/"
+          archive="itree-nightly-${{ matrix.asset_os }}-${{ matrix.asset_arch }}.tar.gz"
+          tar -czf "$archive" -C dist release
+          echo "RELEASE_ARCHIVE=$archive" >> "$GITHUB_ENV"
+
+      - name: Build and test (debug)
+        run: |
+          make clean
+          ./configure --debug
+          make build
+          make test
+
+      - name: Package debug binary
+        shell: bash
+        run: |
+          pkg_dir="dist/debug"
+          mkdir -p "$pkg_dir"
+          cp itree "$pkg_dir/"
+          archive="itree-debug-nightly-${{ matrix.asset_os }}-${{ matrix.asset_arch }}.tar.gz"
+          tar -czf "$archive" -C dist debug
+          echo "DEBUG_ARCHIVE=$archive" >> "$GITHUB_ENV"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_os }}-${{ matrix.asset_arch }}
+          path: |
+            ${{ env.RELEASE_ARCHIVE }}
+            ${{ env.DEBUG_ARCHIVE }}
+
+  publish:
+    name: Publish Nightly Release
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Update nightly tag
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          gh release delete nightly --cleanup-tag -y || true
+          git tag -f nightly
+          git push -f origin nightly
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish Nightly Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: "Nightly Build"
+          body: "Automated nightly build from ${{ github.sha }}."
+          prerelease: true
+          files: |
+            release-assets/*.tar.gz
