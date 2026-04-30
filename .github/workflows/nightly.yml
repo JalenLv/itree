@@ -99,21 +99,21 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Update nightly tag
+      - name: Delete previous nightly release and tag
         shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          gh release delete nightly --cleanup-tag -y || true
-          git tag -f nightly
-          git push -f origin nightly
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release delete nightly --cleanup-tag -y
+          fi
 
       - name: Publish Nightly Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: nightly
+          target_commitish: ${{ github.sha }}
           name: "Nightly Build"
           body: "Automated nightly build from ${{ github.sha }}."
           prerelease: true
