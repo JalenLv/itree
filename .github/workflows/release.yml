@@ -84,22 +84,12 @@ jobs:
           tar -czf "$archive" -C dist itree
           echo "ARCHIVE_NAME=$archive" >> "$GITHUB_ENV"
 
-      - name: Generate checksum
-        shell: bash
-        run: |
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            shasum -a 256 "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
-          else
-            sha256sum "$ARCHIVE_NAME" > "${ARCHIVE_NAME}.sha256"
-          fi
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_os }}-${{ matrix.asset_arch }}
           path: |
             ${{ env.ARCHIVE_NAME }}
-            ${{ env.ARCHIVE_NAME }}.sha256
 
   publish:
     name: Publish Release
@@ -139,4 +129,3 @@ jobs:
           generate_release_notes: true
           files: |
             release-assets/**/*.tar.gz
-            release-assets/**/*.sha256
