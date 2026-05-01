@@ -1,0 +1,1 @@
+- Replacing all strings on the stack with dynamically allocated strings in an arena.
