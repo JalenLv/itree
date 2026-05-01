@@ -146,12 +146,8 @@ int draw_visible_entries(AppState *app_state) {
     do {
         // Do the drawing
         FileTreeNode *node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
-        // Highlight the selected entry
-        if (i == app_state->selected_entry) {
-            mvwprintw(app_state->tree_pad, row, 0, "->");
-        } else {
-            mvwprintw(app_state->tree_pad, row, 0, "  ");
-        }
+        // Leave 2 spaces on the left for the selected entry arrow
+        mvwprintw(app_state->tree_pad, row, 0, "  ");
         // Indentation based on depth
         for (int d = 0; d < node->depth; ++d) {
             wprintw(app_state->tree_pad, "    ");
