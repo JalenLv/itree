@@ -1,240 +1,75 @@
+#include "tui.h"
+#include "helpers.h"
 #include <stdlib.h>
 #include <unistd.h>
 
+static int pad_cell_is_blank(WINDOW *pad, int y, int x) {
 #ifdef WIDE_NCURSES
-#include <ncursesw/ncurses.h>
-#include <locale.h>
-#include <wchar.h>
+    cchar_t c;
+    if (mvwin_wch(pad, y, x, &c) == ERR) return 1;
+    wchar_t buf[CCHARW_MAX];
+    attr_t attrs;
+    short pair;
+    if (getcchar(&c, buf, &attrs, &pair, NULL) == ERR) return 1;
+    return buf[0] == L' ' || buf[0] == L'\0';
 #else
-#include <ncurses.h>
+    chtype c = mvwinch(pad, y, x);
+    return ((c & A_CHARTEXT) == ' ' || (c & A_CHARTEXT) == ERR);
 #endif
-
-#include "tui.h"
-#include "helpers.h"
-
-void update_tail_given_head(AppState *app_state, FileTree *file_tree, int lines) {
-    int vis_ent_cnt = 0;
-    int i = app_state->visible_entries_head, next_i;
-    while ((next_i = next(file_tree, i)) != 0) {
-        if (++vis_ent_cnt >= lines) break;
-        i = next_i;
-    }
-    app_state->visible_entries_tail = i;
 }
 
-void update_head_given_tail(AppState *app_state, FileTree *file_tree, int lines) {
-    int vis_ent_cnt = 0;
-    int i = app_state->visible_entries_tail;
-    while (i != 0) {
-        if (++vis_ent_cnt >= lines) break;
-        i = prev(file_tree, i);
-    }
-    app_state->visible_entries_head = i;
-}
-
-int init_app_state(AppState *app_state, FileTree *file_tree, int lines) {
-    // Init all entries
-    app_state->all_entries = file_tree;
-
-    // Init visible related fields
-    app_state->visible_entries_head = 0;
-    app_state->selected_entry = 0;
-    update_tail_given_head(app_state, file_tree, lines);
-
-    return 0;
-}
-
-int handle_key(AppState *app_state, FileTree *file_tree, int ch, int lines) {
-    switch (ch) {
-        case 'q': {
-            return 1;
-        }
-        case KEY_DOWN:
-        case 'j': {
-            int is_window_subset = !(
-                app_state->visible_entries_head == 0
-                && next(file_tree, app_state->visible_entries_tail) == 0
-            );
-            int is_selected_at_bottom = (app_state->selected_entry == app_state->visible_entries_tail);
-            if (is_window_subset && is_selected_at_bottom) {
-                // Slide window down
-                if (next(file_tree, app_state->visible_entries_tail) != 0) {
-                    // If not at the end
-                    app_state->visible_entries_head = next(file_tree, app_state->visible_entries_head);
-                    app_state->visible_entries_tail = next(file_tree, app_state->visible_entries_tail);
-                    app_state->selected_entry = app_state->visible_entries_tail;
-                } else {
-                    // At the end, loop back to top
-                    init_app_state(app_state, file_tree, lines);
-                }
-            } else {
-                // Move selection down
-                app_state->selected_entry = next(file_tree, app_state->selected_entry);
-            }
-            break;
-        }
-        case KEY_UP:
-        case 'k': {
-            int is_window_subset = !(
-                app_state->visible_entries_head == 0
-                && next(file_tree, app_state->visible_entries_tail) == 0
-            );
-            int is_selected_at_top = (app_state->selected_entry == app_state->visible_entries_head);
-            if (is_window_subset && is_selected_at_top) {
-                // Slide window up
-                if (app_state->visible_entries_head != 0) {
-                    // If not at the start
-                    app_state->visible_entries_head = prev(file_tree, app_state->visible_entries_head);
-                    update_tail_given_head(app_state, file_tree, lines);
-                    app_state->selected_entry = app_state->visible_entries_head;
-                } else {
-                    // At the start, go to bottom
-                    app_state->visible_entries_tail = prev(file_tree, 0);
-                    app_state->selected_entry = app_state->visible_entries_tail;
-                    update_head_given_tail(app_state, file_tree, lines);
-                }
-            } else {
-                app_state->selected_entry = prev(file_tree, app_state->selected_entry);
-            }
-            break;
-        }
-        case KEY_LEFT:
-        case 'h': { // Collapse directory
-            FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, app_state->selected_entry);
-            if (current_node->type == DIRECTORY_NODE && !current_node->collapsed) {
-                current_node->collapsed = 1;
-                // Update visible fields
-                update_tail_given_head(app_state, file_tree, lines);
-            }
-            break;
-        }
-        case KEY_RIGHT:
-        case 'l': { // Expand directory
-            FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, app_state->selected_entry);
-            if (current_node->type == DIRECTORY_NODE && current_node->collapsed) {
-                current_node->collapsed = 0;
-                // Update visible fields
-                update_tail_given_head(app_state, file_tree, lines);
-            }
-            break;
-        }
-        case KEY_RESIZE: {
-            update_tail_given_head(app_state, file_tree, lines);
-            if (app_state->selected_entry > app_state->visible_entries_tail) {
-                app_state->selected_entry = app_state->visible_entries_tail;
-            }
-            break;
-        }
-        case 'g': { // Go to top
-            init_app_state(app_state, file_tree, lines);
-            break;
-        }
-        case 'G': { // Go to bottom
-            app_state->visible_entries_tail = prev(file_tree, 0);
-            app_state->selected_entry = app_state->visible_entries_tail;
-            update_head_given_tail(app_state, file_tree, lines);
-            break;
-        }
-        case 4: { // Ctrl-D
-            // Go down half a page
-            for (int i = 0; i < lines / 2; ++i) {
-                if (next(file_tree, app_state->visible_entries_tail) != 0) {
-                    // If not at the end, slide window down
-                    // Keep selected entry relative stationary to the window
-                    app_state->visible_entries_head = next(file_tree, app_state->visible_entries_head);
-                    app_state->visible_entries_tail = next(file_tree, app_state->visible_entries_tail);
-                    app_state->selected_entry = next(file_tree, app_state->selected_entry);
-                } else {
-                    // At the end, slide selected entry down only
-                    if (next(file_tree, app_state->selected_entry) != 0) {
-                        app_state->selected_entry = next(file_tree, app_state->selected_entry);
-                    }
-                }
-            }
-            break;
-        }
-        case 21: { // Ctrl-U
-            // Go up half a page
-            for (int i = 0; i < lines / 2; ++i) {
-                if (app_state->visible_entries_head != 0) {
-                    // If not at the start, slide window up
-                    // Keep selected entry relative stationary to the window
-                    app_state->visible_entries_head = prev(file_tree, app_state->visible_entries_head);
-                    update_tail_given_head(app_state, file_tree, lines);
-                    app_state->selected_entry = prev(file_tree, app_state->selected_entry);
-                } else {
-                    // At the start, slide selected entry up only
-                    if (app_state->selected_entry != 0) {
-                        app_state->selected_entry = prev(file_tree, app_state->selected_entry);
-                    }
-                }
-            }
-            break;
-        }
-    }
-    return 0;
-}
-
-int draw_visible_entries(AppState *app_state) {
-    clear();
-
-    // Draw each visible entry
-    int row = 0;
-    int i = app_state->visible_entries_head;
-    do {
-        // Do the drawing
-        FileTreeNode *node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
-        // Highlight the selected entry
-        if (i == app_state->selected_entry) {
-            attron(A_STANDOUT);
-            mvprintw(row, 0, "->");
-        } else {
-            mvprintw(row, 0, "  ");
-        }
-        // Indentation based on depth
-        for (int d = 0; d < node->depth; ++d) {
-            printw("    ");
-        }
-        // Display node name with prefix and suffix
-        char *prefix = (node->type == DIRECTORY_NODE) ? (node->collapsed ? "  > " : "  v ") : "    ";
-        char *suffix = (node->type == DIRECTORY_NODE) ? "/" : (node->type == LINK_NODE ? " -> " : "");
+static void pad_cell_copy(WINDOW *dst, int dy, int dx, WINDOW *src, int sy, int sx) {
 #ifdef WIDE_NCURSES
-        // Use wide print for potential wide characters
-        if (node->type == LINK_NODE) {
-            wchar_t wname[512];
-            wchar_t wtarget[512];
-            size_t name_ret = mbstowcs(wname, node->name, 512);
-            size_t target_ret = mbstowcs(wtarget, node->target, 512);
-            if (name_ret == (size_t)(-1) || target_ret == (size_t)(-1)) {
-                // Conversion error, fallback to narrow print
-                printw("%s%s%s%s\n", prefix, node->name, suffix, node->target);
-            } else {
-                printw("%s%ls%s%ls\n", prefix, wname, suffix, wtarget);
-            }
-        } else {
-            wchar_t wname[512];
-            size_t name_ret = mbstowcs(wname, node->name, 512);
-            if (name_ret == (size_t)(-1)) {
-                printw("%s%s%s\n", prefix, node->name, suffix);
-            } else {
-                printw("%s%ls%s\n", prefix, wname, suffix);
-            }
+    // If sx lands on the second cell of a 2-column glyph, ncurses fills it
+    // with a padding wchar (L'\0'); back off one cell so we don't copy a half-glyph.
+    cchar_t c;
+    if (mvwin_wch(src, sy, sx, &c) == ERR) {
+        mvwaddch(dst, dy, dx, ' ');
+        return;
+    }
+    wchar_t buf[CCHARW_MAX];
+    attr_t attrs;
+    short pair;
+    if (getcchar(&c, buf, &attrs, &pair, NULL) != ERR && buf[0] == L'\0' && sx > 0) {
+        if (mvwin_wch(src, sy, sx - 1, &c) == ERR) {
+            mvwaddch(dst, dy, dx, ' ');
+            return;
         }
+    }
+    mvwadd_wch(dst, dy, dx, &c);
 #else
-        printw("%s%s%s%s\n", prefix, node->name, suffix, (node->type == LINK_NODE ? node->target : ""));
+    chtype c = wmove(src, sy, sx) == ERR ? ' ' : winch(src);
+    mvwaddch(dst, dy, dx, c);
 #endif
-        // Turn off highlight if needed
-        if (i == app_state->selected_entry) {
-            attroff(A_STANDOUT);
+}
+
+static int entry_display_width(FileTreeNode *node) {
+    int len = 2 + node->depth * 4 + 4;
+    len += (node->type == DIRECTORY_NODE) ? 1 : ((node->type == LINK_NODE) ? 4 : 0);
+#ifdef WIDE_NCURSES
+    wchar_t wname[512];
+    size_t wn = mbstowcs(wname, node->name, 512);
+    if (wn == (size_t)(-1)) {
+        len += (int)strlen(node->name);
+    } else {
+        int w = wcswidth(wname, wn);
+        len += (w < 0) ? (int)wn : w;
+    }
+    if (node->type == LINK_NODE) {
+        wchar_t wtarget[512];
+        size_t wt = mbstowcs(wtarget, node->target, 512);
+        if (wt == (size_t)(-1)) {
+            len += (int)strlen(node->target);
+        } else {
+            int w = wcswidth(wtarget, wt);
+            len += (w < 0) ? (int)wt : w;
         }
-        row++;
-
-        // Update i
-        i = next(app_state->all_entries, i);
-    } while (i != 0 && i <= app_state->visible_entries_tail);
-
-    refresh();
-    return 0;
+    }
+#else
+    len += (int)strlen(node->name);
+    len += (node->type == LINK_NODE) ? (int)strlen(node->target) : 0;
+#endif
+    return len;
 }
 
 int run_tui(FileTree *file_tree) {
@@ -254,13 +89,15 @@ int run_tui(FileTree *file_tree) {
     intrflush(stdscr, FALSE);   // Don't flush on interrupt keys
     scrollok(stdscr, FALSE);    // Disable scrolling
 
+    refresh();
+
     AppState app_state = {0};
     if (init_app_state(&app_state, file_tree, LINES) != 0) {
         fprintf(stderr, "Error: Failed to initialize application state.\n");
         return 1;
     }
 
-    if (draw_visible_entries(&app_state) != 0) {
+    if (render_tui(&app_state) != 0) {
         fprintf(stderr, "Error: Failed to draw visible entries.\n");
         return 1;
     }
@@ -269,13 +106,400 @@ int run_tui(FileTree *file_tree) {
     int ch;
     while (1) {
         ch = getch();
-        if (handle_key(&app_state, file_tree, ch, LINES) != 0) break;
-        if (draw_visible_entries(&app_state) != 0) {
+        if (handle_key(&app_state, ch) != 0) break;
+        if (render_tui(&app_state) != 0) {
             fprintf(stderr, "Error: Failed to draw visible entries.\n");
             return 1;
         }
     }
 
     endwin();
+    return 0;
+}
+
+int render_tui(AppState *app_state) {
+    werase(stdscr);
+    wnoutrefresh(stdscr);
+
+    if (draw_visible_entries(app_state) != 0) {
+        fprintf(stderr, "Error: Failed to draw visible entries.\n");
+        return 1;
+    }
+    if (draw_overflow_indicator(app_state) != 0) {
+        fprintf(stderr, "Error: Failed to draw overflow indicators.\n");
+        return 1;
+    }
+    if (draw_selected_entry_arrow(app_state) != 0) {
+        fprintf(stderr, "Error: Failed to draw selected entry arrow.\n");
+        return 1;
+    }
+
+    doupdate();
+    return 0;
+}
+
+int draw_visible_entries(AppState *app_state) {
+    werase(app_state->tree_pad);
+
+    int row = 0;
+    int i = app_state->visible_entries_head;
+    do {
+        // Do the drawing
+        FileTreeNode *node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
+        // Leave 2 spaces on the left for the selected entry arrow
+        mvwprintw(app_state->tree_pad, row, 0, "  ");
+        // Indentation based on depth
+        for (int d = 0; d < node->depth; ++d) {
+            wprintw(app_state->tree_pad, "    ");
+        }
+        // Display node name with prefix and suffix
+        char *prefix = (node->type == DIRECTORY_NODE) ? (node->collapsed ? "  > " : "  v ") : "    ";
+        char *suffix = (node->type == DIRECTORY_NODE) ? "/" : (node->type == LINK_NODE ? " -> " : "");
+#ifdef WIDE_NCURSES
+        // Use wide print for potential wide characters
+        if (node->type == LINK_NODE) {
+            wchar_t wname[512];
+            wchar_t wtarget[512];
+            size_t name_ret = mbstowcs(wname, node->name, 512);
+            size_t target_ret = mbstowcs(wtarget, node->target, 512);
+            if (name_ret == (size_t)(-1) || target_ret == (size_t)(-1)) {
+                // Conversion error, fallback to narrow print
+                wprintw(app_state->tree_pad, "%s", prefix);
+                if (i == app_state->selected_entry) {
+                    wattron(app_state->tree_pad, A_STANDOUT);
+                }
+                wprintw(app_state->tree_pad, "%s%s%s\n", node->name, suffix, node->target);
+            } else {
+                wprintw(app_state->tree_pad, "%s", prefix);
+                if (i == app_state->selected_entry) {
+                    wattron(app_state->tree_pad, A_STANDOUT);
+                }
+                wprintw(app_state->tree_pad, "%ls%s%ls\n", wname, suffix, wtarget);
+            }
+        } else {
+            wchar_t wname[512];
+            size_t name_ret = mbstowcs(wname, node->name, 512);
+            if (name_ret == (size_t)(-1)) {
+                wprintw(app_state->tree_pad, "%s", prefix);
+                if (i == app_state->selected_entry) {
+                    wattron(app_state->tree_pad, A_STANDOUT);
+                }
+                wprintw(app_state->tree_pad, "%s%s\n", node->name, suffix);
+            } else {
+                wprintw(app_state->tree_pad, "%s", prefix);
+                if (i == app_state->selected_entry) {
+                    wattron(app_state->tree_pad, A_STANDOUT);
+                }
+                wprintw(app_state->tree_pad, "%ls%s\n", wname, suffix);
+            }
+        }
+#else
+        wprintw(app_state->tree_pad, "%s", prefix);
+        if (i == app_state->selected_entry) {
+            wattron(app_state->tree_pad, A_STANDOUT);
+        }
+        wprintw(app_state->tree_pad, "%s%s%s\n", node->name, suffix, (node->type == LINK_NODE ? node->target : ""));
+#endif
+        // Turn off highlight if needed
+        if (i == app_state->selected_entry) {
+            wattroff(app_state->tree_pad, A_STANDOUT);
+        }
+        row++;
+
+        // Update i
+        i = next(app_state->all_entries, i);
+    } while (i != 0 && i <= app_state->visible_entries_tail);
+
+    pnoutrefresh(app_state->tree_pad, 0, app_state->col_offset, 0, 0, app_state->rows - 1, app_state->cols - 1);
+    return 0;
+}
+
+int draw_overflow_indicator(AppState *app_state) {
+    if (app_state->tree_pad_cols <= app_state->cols) return 0;
+
+    WINDOW *of_ind_win = newwin(app_state->rows, 1, 0, app_state->cols - 1);
+    if (of_ind_win == NULL) {
+        fprintf(stderr, "Error: Failed to create overflow indicator window.\n");
+        return 1;
+    }
+    werase(of_ind_win);
+
+    int row = 0;
+    int i = app_state->visible_entries_head;
+    do {
+        int is_overflowing = 0;
+        for (int col = app_state->cols + app_state->col_offset; col < app_state->tree_pad_cols; ++col) {
+            if (!pad_cell_is_blank(app_state->tree_pad, row, col)) {
+                is_overflowing = 1;
+                break;
+            }
+        }
+        if (is_overflowing) {
+            wattron(of_ind_win, A_STANDOUT);
+            mvwaddch(of_ind_win, row, 0, '>');
+            wattroff(of_ind_win, A_STANDOUT);
+        } else {
+            pad_cell_copy(of_ind_win, row, 0,
+                          app_state->tree_pad, row,
+                          app_state->cols + app_state->col_offset - 1);
+        }
+        row++;
+        i = next(app_state->all_entries, i);
+    } while (i != 0 && i <= app_state->visible_entries_tail);
+
+    wnoutrefresh(of_ind_win);
+    delwin(of_ind_win);
+    return 0;
+}
+
+int draw_selected_entry_arrow(AppState *app_state) {
+    int row = 0;
+    int i = app_state->visible_entries_head;
+    do {
+        if (i == app_state->selected_entry) {
+            WINDOW *sel_arrow_win = newwin(1, 4, row, 0);
+            if (sel_arrow_win == NULL) {
+                fprintf(stderr, "Error: Failed to create selected entry arrow window.\n");
+                return 1;
+            }
+            werase(sel_arrow_win);
+            wattrset(sel_arrow_win, A_NORMAL);
+            mvwprintw(sel_arrow_win, 0, 0, "->  ");
+            wnoutrefresh(sel_arrow_win);
+            delwin(sel_arrow_win);
+            return 0;
+        }
+        row++;
+        i = next(app_state->all_entries, i);
+    } while (i != 0 && i <= app_state->visible_entries_tail);
+
+    return 1; // Unreachable
+}
+
+void update_tail_given_head(AppState *app_state) {
+    int vis_ent_cnt = 0;
+    int i = app_state->visible_entries_head, next_i;
+    while ((next_i = next(app_state->all_entries, i)) != 0) {
+        if (++vis_ent_cnt >= app_state->rows) break;
+        i = next_i;
+    }
+    app_state->visible_entries_tail = i;
+}
+
+void update_head_given_tail(AppState *app_state) {
+    int vis_ent_cnt = 0;
+    int i = app_state->visible_entries_tail;
+    while (i != 0) {
+        if (++vis_ent_cnt >= app_state->rows) break;
+        i = prev(app_state->all_entries, i);
+    }
+    app_state->visible_entries_head = i;
+}
+
+void update_tree_pad(AppState *app_state) {
+    int max_len = 0;
+    int i = app_state->visible_entries_head;
+    do {
+        // Do-while to handle the case when visible_entries_head == root (0)
+        FileTreeNode *node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
+        int len = entry_display_width(node);
+        if (len > max_len) max_len = len;
+        i = next(app_state->all_entries, i);
+    } while (i != 0 && i <= app_state->visible_entries_tail);
+
+    // Update tree pad if necessary
+    if (app_state->tree_pad == NULL ||
+        app_state->tree_pad_cols < MAX(max_len, app_state->cols) ||
+        app_state->tree_pad_rows < app_state->rows)
+    {
+        app_state->tree_pad_rows = app_state->rows;
+        app_state->tree_pad_cols = MAX(app_state->cols, max_len);
+        if (app_state->tree_pad != NULL)
+            delwin(app_state->tree_pad);
+        app_state->tree_pad = newpad(app_state->tree_pad_rows, app_state->tree_pad_cols);
+    }
+}
+
+int init_app_state(AppState *app_state, FileTree *file_tree, int rows) {
+    app_state->all_entries = file_tree;
+    app_state->rows = rows;
+    // TODO: Parameterize cols as well for testing purposes; also write tests for small terminal sizes
+    app_state->cols = COLS;
+    app_state->visible_entries_head = 0;
+    app_state->selected_entry = 0;
+    update_tail_given_head(app_state);
+    app_state->col_offset = 0;
+    update_tree_pad(app_state);
+    if (app_state->tree_pad == NULL) {
+        fprintf(stderr, "Error: Failed to initialize tree pad.\n");
+        return 1;
+    }
+    return 0;
+}
+
+int handle_key(AppState *app_state, int ch) {
+    switch (ch) {
+        case 'q': {
+            return 1;
+        }
+        case KEY_DOWN:
+        case 'j': {
+            int is_selected_at_bottom = (app_state->selected_entry == app_state->visible_entries_tail);
+            int is_window_at_bottom = (next(app_state->all_entries, app_state->visible_entries_tail) == 0);
+            if (!is_selected_at_bottom) {
+                // Move selection down
+                app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
+            } else if (!is_window_at_bottom) {
+                // If not at the end, slide window down
+                app_state->visible_entries_head = next(app_state->all_entries, app_state->visible_entries_head);
+                app_state->visible_entries_tail = next(app_state->all_entries, app_state->visible_entries_tail);
+                app_state->selected_entry = app_state->visible_entries_tail;
+                update_tree_pad(app_state);
+                if (app_state->tree_pad == NULL) {
+                    fprintf(stderr, "Error: Failed to update tree pad.\n");
+                    return 1;
+                }
+            } else {
+                // At the end, loop back to top
+                init_app_state(app_state, app_state->all_entries, app_state->rows);
+            }
+            break;
+        }
+        case KEY_UP:
+        case 'k': {
+            int is_selected_at_top = (app_state->selected_entry == app_state->visible_entries_head);
+            int is_window_at_top = (app_state->visible_entries_head == 0);
+            if (!is_selected_at_top) {
+                // Move selection up
+                app_state->selected_entry = prev(app_state->all_entries, app_state->selected_entry);
+            } else if (!is_window_at_top) {
+                // If not at the start, slide window up
+                app_state->visible_entries_head = prev(app_state->all_entries, app_state->visible_entries_head);
+                app_state->visible_entries_tail = prev(app_state->all_entries, app_state->visible_entries_tail);
+                app_state->selected_entry = app_state->visible_entries_head;
+                update_tree_pad(app_state);
+                if (app_state->tree_pad == NULL) {
+                    fprintf(stderr, "Error: Failed to update tree pad.\n");
+                    return 1;
+                }
+            } else {
+                // At the start, loop back to bottom
+                app_state->visible_entries_tail = prev(app_state->all_entries, 0);
+                update_head_given_tail(app_state);
+                app_state->selected_entry = app_state->visible_entries_tail;
+                update_tree_pad(app_state);
+                if (app_state->tree_pad == NULL) {
+                    fprintf(stderr, "Error: Failed to update tree pad.\n");
+                    return 1;
+                }
+            }
+            break;
+        }
+        case 'h': { // Collapse directory
+            FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, app_state->selected_entry);
+            if (current_node->type == DIRECTORY_NODE && !current_node->collapsed) {
+                current_node->collapsed = 1;
+                update_tail_given_head(app_state);
+                update_tree_pad(app_state);
+                if (app_state->tree_pad == NULL) {
+                    fprintf(stderr, "Error: Failed to update tree pad.\n");
+                    return 1;
+                }
+            }
+            break;
+        }
+        case 'l': { // Expand directory
+            FileTreeNode *current_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, app_state->selected_entry);
+            if (current_node->type == DIRECTORY_NODE && current_node->collapsed) {
+                current_node->collapsed = 0;
+                update_tail_given_head(app_state);
+                update_tree_pad(app_state);
+                if (app_state->tree_pad == NULL) {
+                    fprintf(stderr, "Error: Failed to update tree pad.\n");
+                    return 1;
+                }
+            }
+            break;
+        }
+        case KEY_RESIZE: {
+            app_state->rows = LINES;
+            app_state->cols = COLS;
+            update_tail_given_head(app_state);
+            if (app_state->selected_entry > app_state->visible_entries_tail) {
+                app_state->selected_entry = app_state->visible_entries_tail;
+            }
+            update_tree_pad(app_state);
+            if (app_state->tree_pad == NULL) {
+                fprintf(stderr, "Error: Failed to update tree pad.\n");
+                return 1;
+            }
+            break;
+        }
+        case 'g': { // Go to top
+            init_app_state(app_state, app_state->all_entries, app_state->rows);
+            break;
+        }
+        case 'G': { // Go to bottom
+            app_state->visible_entries_tail = prev(app_state->all_entries, 0);
+            app_state->selected_entry = app_state->visible_entries_tail;
+            update_head_given_tail(app_state);
+            update_tree_pad(app_state);
+            if (app_state->tree_pad == NULL) {
+                fprintf(stderr, "Error: Failed to update tree pad.\n");
+                return 1;
+            }
+            break;
+        }
+        case 4: { // Ctrl-D
+            // Go down half a page
+            for (int i = 0; i < app_state->rows / 2; ++i) {
+                if (next(app_state->all_entries, app_state->visible_entries_tail) != 0) {
+                    // If not at the end, slide window down
+                    // Keep selected entry relative stationary to the window
+                    app_state->visible_entries_head = next(app_state->all_entries, app_state->visible_entries_head);
+                    app_state->visible_entries_tail = next(app_state->all_entries, app_state->visible_entries_tail);
+                    app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
+                    update_tree_pad(app_state);
+                    if (app_state->tree_pad == NULL) {
+                        fprintf(stderr, "Error: Failed to update tree pad.\n");
+                        return 1;
+                    }
+                } else if (next(app_state->all_entries, app_state->selected_entry) != 0) {
+                    // At the end, slide selected entry down only
+                    app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
+                }
+            }
+            break;
+        }
+        case 21: { // Ctrl-U
+            // Go up half a page
+            for (int i = 0; i < app_state->rows / 2; ++i) {
+                if (app_state->visible_entries_head != 0) {
+                    // If not at the start, slide window up
+                    // Keep selected entry relative stationary to the window
+                    app_state->visible_entries_head = prev(app_state->all_entries, app_state->visible_entries_head);
+                    app_state->visible_entries_tail = prev(app_state->all_entries, app_state->visible_entries_tail);
+                    app_state->selected_entry = prev(app_state->all_entries, app_state->selected_entry);
+                    update_tree_pad(app_state);
+                    if (app_state->tree_pad == NULL) {
+                        fprintf(stderr, "Error: Failed to update tree pad.\n");
+                        return 1;
+                    }
+                } else if (app_state->selected_entry != 0) {
+                    // At the start, slide selected entry up only
+                    app_state->selected_entry = prev(app_state->all_entries, app_state->selected_entry);
+                }
+            }
+            break;
+        }
+        case KEY_LEFT: { // Go left half a page
+            app_state->col_offset = MAX(0, app_state->col_offset - app_state->cols / 2);
+            break;
+        }
+        case KEY_RIGHT: { // Go right half a page
+            app_state->col_offset += app_state->cols / 2;
+            break;
+        }
+    }
     return 0;
 }
