@@ -67,8 +67,8 @@ install: build
 # ---------------------------------------------------------------------------
 
 # Sources for the unit-test binary: all of src/ except main.c, plus all
-# tests/unit/*.c. The runner links ncurses (for KEY_* constants) but never
-# calls initscr(), so it is safe to run in any environment.
+# tests/unit/*.c. The runner links and initializes ncurses on /dev/null
+# so init_app_state's newpad call succeeds without touching the user's tty.
 TEST_SRC := $(filter-out src/main.c,$(SRC)) $(wildcard tests/unit/*.c)
 TEST_CFLAGS := $(filter-out -Werror,$(CFLAGS)) -Itests -Itests/unit
 TEST_LDFLAGS := $(LDFLAGS)

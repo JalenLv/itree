@@ -14,7 +14,7 @@ sion] [--help] [--] [directory ...]
 - [X] Add sorting: stable alphabetical order.
 - [X] Add --no-tui flag.
 - [X] Add -a/--hidden flag.
-- [ ] Add left/right arrow to move left/right in the TUI in case of long file names.
+- [X] Add left/right arrow to move left/right in the TUI in case of long file names.
 - [ ] Add search/filter in the TUI with /pattern, then jump between matches with n / N.
 - [ ] Add --dirsfirst and --filesfirst flags.
 - [ ] Add d to hide entries, u to undo hiding, U to unhide all, and r to undo the undos.

@@ -3,11 +3,18 @@
 #include "file_tree.h"
 #include "test_util.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #ifdef WIDE_NCURSES
 #include <ncursesw/ncurses.h>
 #else
 #include <ncurses.h>
 #endif
+
+static SCREEN *test_screen = NULL;
+static FILE *test_null_in = NULL;
+static FILE *test_null_out = NULL;
 
 /*
  * Build a flat tree with `n` files under one root (n+1 nodes total).
@@ -35,6 +42,7 @@ TEST init_app_state_with_window_smaller_than_tree(void) {
     ASSERT_EQ(0, s.selected_entry);
     /* tail is the 4th visible entry: index 3 */
     ASSERT_EQ(3, s.visible_entries_tail);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -48,6 +56,7 @@ TEST init_app_state_with_window_larger_than_tree(void) {
     ASSERT_EQ(0, s.selected_entry);
     /* tail should be the last node, idx 3 */
     ASSERT_EQ(3, s.visible_entries_tail);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -62,6 +71,7 @@ TEST q_returns_one(void) {
     AppState s = {0};
     init_app_state(&s, &tree, 10);
     ASSERT_EQ(1, handle_key(&s, 'q'));
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -75,6 +85,7 @@ TEST j_moves_selection_down(void) {
     ASSERT_EQ(1, s.selected_entry);
     ASSERT_EQ(0, handle_key(&s, 'j'));
     ASSERT_EQ(2, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -86,6 +97,7 @@ TEST key_down_arrow_same_as_j(void) {
     init_app_state(&s, &tree, 10);
     ASSERT_EQ(0, handle_key(&s, KEY_DOWN));
     ASSERT_EQ(1, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -107,6 +119,7 @@ TEST j_at_window_bottom_slides_window(void) {
     ASSERT_EQ(1, s.visible_entries_head);
     ASSERT_EQ(4, s.visible_entries_tail);
     ASSERT_EQ(4, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -121,6 +134,7 @@ TEST j_at_tree_end_wraps_to_top(void) {
     /* When window holds entire tree, j on last selected just wraps via next() */
     handle_key(&s, 'j');
     ASSERT_EQ(0, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -135,6 +149,7 @@ TEST k_moves_selection_up(void) {
     ASSERT_EQ(2, s.selected_entry);
     ASSERT_EQ(0, handle_key(&s, 'k'));
     ASSERT_EQ(1, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -148,6 +163,7 @@ TEST key_up_arrow_same_as_k(void) {
     ASSERT_EQ(1, s.selected_entry);
     handle_key(&s, KEY_UP);
     ASSERT_EQ(0, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -169,6 +185,7 @@ TEST h_on_directory_collapses(void) {
     /* Collapse */
     handle_key(&s, 'h');
     ASSERT_EQ(1, tree.items[1].collapsed);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -184,6 +201,7 @@ TEST l_on_collapsed_directory_expands(void) {
     ASSERT_EQ(1, s.selected_entry);
     handle_key(&s, 'l');
     ASSERT_EQ(0, tree.items[1].collapsed);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -198,6 +216,7 @@ TEST h_on_file_is_noop(void) {
     handle_key(&s, 'h');
     ASSERT_EQ(prev_sel, s.selected_entry);
     ASSERT_EQ(0, tree.items[1].collapsed);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -217,6 +236,7 @@ TEST g_resets_to_top(void) {
     handle_key(&s, 'g');
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(0, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -229,6 +249,7 @@ TEST G_jumps_to_bottom(void) {
     handle_key(&s, 'G');
     ASSERT_EQ(7, s.selected_entry);
     ASSERT_EQ(7, s.visible_entries_tail);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -246,6 +267,7 @@ TEST ctrl_d_moves_half_page_down(void) {
     ASSERT_EQ(3, s.visible_entries_head);
     ASSERT_EQ(8, s.visible_entries_tail);
     ASSERT_EQ(3, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -271,6 +293,7 @@ TEST ctrl_u_moves_half_page_up(void) {
     ASSERT_EQ(1, s.visible_entries_head);
     ASSERT_EQ(6, s.visible_entries_tail);
     ASSERT_EQ(3, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -291,11 +314,18 @@ TEST resize_recomputes_tail(void) {
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(7, s.visible_entries_tail);
     ASSERT_EQ(0, s.selected_entry);
+    delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
 
 SUITE(tui_suite) {
+    test_null_in  = fopen("/dev/null", "r");
+    test_null_out = fopen("/dev/null", "w");
+    const char *term = getenv("TERM");
+    test_screen = newterm(term && *term ? term : "xterm", test_null_out, test_null_in);
+    if (test_screen) set_term(test_screen);
+
     RUN_TEST(init_app_state_with_window_smaller_than_tree);
     RUN_TEST(init_app_state_with_window_larger_than_tree);
     RUN_TEST(q_returns_one);
@@ -313,4 +343,8 @@ SUITE(tui_suite) {
     RUN_TEST(ctrl_d_moves_half_page_down);
     RUN_TEST(ctrl_u_moves_half_page_up);
     RUN_TEST(resize_recomputes_tail);
+
+    if (test_screen) { endwin(); delscreen(test_screen); }
+    if (test_null_in)  fclose(test_null_in);
+    if (test_null_out) fclose(test_null_out);
 }
