@@ -176,7 +176,7 @@ int handle_key(AppState *app_state, FileTree *file_tree, int ch, int lines) {
 }
 
 int draw_visible_entries(AppState *app_state) {
-    clear();
+    erase();
 
     // Draw each visible entry
     int row = 0;
