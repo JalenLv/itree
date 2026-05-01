@@ -32,9 +32,9 @@ void update_head_given_tail(AppState *app_state) {
     app_state->visible_entries_head = i;
 }
 
-int init_app_state(AppState *app_state, FileTree *file_tree) {
+int init_app_state(AppState *app_state, FileTree *file_tree, int lines) {
     app_state->all_entries = file_tree;
-    app_state->lines = LINES;
+    app_state->lines = lines;
     app_state->visible_entries_head = 0;
     app_state->selected_entry = 0;
     update_tail_given_head(app_state);
@@ -62,7 +62,7 @@ int handle_key(AppState *app_state, int ch) {
                     app_state->selected_entry = app_state->visible_entries_tail;
                 } else {
                     // At the end, loop back to top
-                    init_app_state(app_state, app_state->all_entries);
+                    init_app_state(app_state, app_state->all_entries, app_state->lines);
                 }
             } else {
                 // Move selection down
@@ -124,7 +124,7 @@ int handle_key(AppState *app_state, int ch) {
             break;
         }
         case 'g': { // Go to top
-            init_app_state(app_state, app_state->all_entries);
+            init_app_state(app_state, app_state->all_entries, app_state->lines);
             break;
         }
         case 'G': { // Go to bottom
@@ -253,7 +253,7 @@ int run_tui(FileTree *file_tree) {
     scrollok(stdscr, FALSE);    // Disable scrolling
 
     AppState app_state = {0};
-    if (init_app_state(&app_state, file_tree) != 0) {
+    if (init_app_state(&app_state, file_tree, LINES) != 0) {
         fprintf(stderr, "Error: Failed to initialize application state.\n");
         return 1;
     }

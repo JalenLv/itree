@@ -61,7 +61,7 @@ TEST q_returns_one(void) {
     build_flat_tree(&tree, 3);
     AppState s = {0};
     init_app_state(&s, &tree, 10);
-    ASSERT_EQ(1, handle_key(&s, &tree, 'q', 10));
+    ASSERT_EQ(1, handle_key(&s, 'q'));
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
@@ -71,9 +71,9 @@ TEST j_moves_selection_down(void) {
     build_flat_tree(&tree, 5); /* 6 nodes */
     AppState s = {0};
     init_app_state(&s, &tree, 10);
-    ASSERT_EQ(0, handle_key(&s, &tree, 'j', 10));
+    ASSERT_EQ(0, handle_key(&s, 'j'));
     ASSERT_EQ(1, s.selected_entry);
-    ASSERT_EQ(0, handle_key(&s, &tree, 'j', 10));
+    ASSERT_EQ(0, handle_key(&s, 'j'));
     ASSERT_EQ(2, s.selected_entry);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -84,7 +84,7 @@ TEST key_down_arrow_same_as_j(void) {
     build_flat_tree(&tree, 5);
     AppState s = {0};
     init_app_state(&s, &tree, 10);
-    ASSERT_EQ(0, handle_key(&s, &tree, KEY_DOWN, 10));
+    ASSERT_EQ(0, handle_key(&s, KEY_DOWN));
     ASSERT_EQ(1, s.selected_entry);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -96,14 +96,14 @@ TEST j_at_window_bottom_slides_window(void) {
     AppState s = {0};
     init_app_state(&s, &tree, 4); /* window of 4 */
     /* Move to bottom of visible window */
-    handle_key(&s, &tree, 'j', 4); /* sel=1 */
-    handle_key(&s, &tree, 'j', 4); /* sel=2 */
-    handle_key(&s, &tree, 'j', 4); /* sel=3 (bottom) */
+    handle_key(&s, 'j'); /* sel=1 */
+    handle_key(&s, 'j'); /* sel=2 */
+    handle_key(&s, 'j'); /* sel=3 (bottom) */
     ASSERT_EQ(3, s.selected_entry);
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(3, s.visible_entries_tail);
     /* Next j should slide window down by one */
-    handle_key(&s, &tree, 'j', 4);
+    handle_key(&s, 'j');
     ASSERT_EQ(1, s.visible_entries_head);
     ASSERT_EQ(4, s.visible_entries_tail);
     ASSERT_EQ(4, s.selected_entry);
@@ -117,9 +117,9 @@ TEST j_at_tree_end_wraps_to_top(void) {
     AppState s = {0};
     init_app_state(&s, &tree, 100);
     /* Move selection to last node */
-    while (s.selected_entry != s.visible_entries_tail) handle_key(&s, &tree, 'j', 100);
+    while (s.selected_entry != s.visible_entries_tail) handle_key(&s, 'j');
     /* When window holds entire tree, j on last selected just wraps via next() */
-    handle_key(&s, &tree, 'j', 100);
+    handle_key(&s, 'j');
     ASSERT_EQ(0, s.selected_entry);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -130,10 +130,10 @@ TEST k_moves_selection_up(void) {
     build_flat_tree(&tree, 5);
     AppState s = {0};
     init_app_state(&s, &tree, 10);
-    handle_key(&s, &tree, 'j', 10); /* sel=1 */
-    handle_key(&s, &tree, 'j', 10); /* sel=2 */
+    handle_key(&s, 'j'); /* sel=1 */
+    handle_key(&s, 'j'); /* sel=2 */
     ASSERT_EQ(2, s.selected_entry);
-    ASSERT_EQ(0, handle_key(&s, &tree, 'k', 10));
+    ASSERT_EQ(0, handle_key(&s, 'k'));
     ASSERT_EQ(1, s.selected_entry);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -144,9 +144,9 @@ TEST key_up_arrow_same_as_k(void) {
     build_flat_tree(&tree, 5);
     AppState s = {0};
     init_app_state(&s, &tree, 10);
-    handle_key(&s, &tree, 'j', 10);
+    handle_key(&s, 'j');
     ASSERT_EQ(1, s.selected_entry);
-    handle_key(&s, &tree, KEY_UP, 10);
+    handle_key(&s, KEY_UP);
     ASSERT_EQ(0, s.selected_entry);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -164,10 +164,10 @@ TEST h_on_directory_collapses(void) {
     AppState s = {0};
     init_app_state(&s, &tree, 10);
     /* Move to "sub" */
-    handle_key(&s, &tree, 'j', 10);
+    handle_key(&s, 'j');
     ASSERT_EQ(1, s.selected_entry);
     /* Collapse */
-    handle_key(&s, &tree, 'h', 10);
+    handle_key(&s, 'h');
     ASSERT_EQ(1, tree.items[1].collapsed);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -180,9 +180,9 @@ TEST l_on_collapsed_directory_expands(void) {
     synth_push(&tree, FILE_NODE,      "leaf", 2, 0, NULL);
     AppState s = {0};
     init_app_state(&s, &tree, 10);
-    handle_key(&s, &tree, 'j', 10); /* sel=sub */
+    handle_key(&s, 'j'); /* sel=sub */
     ASSERT_EQ(1, s.selected_entry);
-    handle_key(&s, &tree, 'l', 10);
+    handle_key(&s, 'l');
     ASSERT_EQ(0, tree.items[1].collapsed);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -193,9 +193,9 @@ TEST h_on_file_is_noop(void) {
     build_flat_tree(&tree, 3);
     AppState s = {0};
     init_app_state(&s, &tree, 10);
-    handle_key(&s, &tree, 'j', 10); /* sel=1 (a file) */
+    handle_key(&s, 'j'); /* sel=1 (a file) */
     int prev_sel = s.selected_entry;
-    handle_key(&s, &tree, 'h', 10);
+    handle_key(&s, 'h');
     ASSERT_EQ(prev_sel, s.selected_entry);
     ASSERT_EQ(0, tree.items[1].collapsed);
     DA_FREE(FileTreeNode, &tree);
@@ -212,9 +212,9 @@ TEST g_resets_to_top(void) {
     AppState s = {0};
     init_app_state(&s, &tree, 4);
     /* scroll deep into the tree */
-    for (int i = 0; i < 6; ++i) handle_key(&s, &tree, 'j', 4);
+    for (int i = 0; i < 6; ++i) handle_key(&s, 'j');
     ASSERT(s.selected_entry > 0);
-    handle_key(&s, &tree, 'g', 4);
+    handle_key(&s, 'g');
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(0, s.selected_entry);
     DA_FREE(FileTreeNode, &tree);
@@ -226,7 +226,7 @@ TEST G_jumps_to_bottom(void) {
     build_flat_tree(&tree, 7); /* 8 nodes; last index 7 */
     AppState s = {0};
     init_app_state(&s, &tree, 4);
-    handle_key(&s, &tree, 'G', 4);
+    handle_key(&s, 'G');
     ASSERT_EQ(7, s.selected_entry);
     ASSERT_EQ(7, s.visible_entries_tail);
     DA_FREE(FileTreeNode, &tree);
@@ -242,7 +242,7 @@ TEST ctrl_d_moves_half_page_down(void) {
     build_flat_tree(&tree, 9);
     AppState s = {0};
     init_app_state(&s, &tree, 6);
-    handle_key(&s, &tree, 4 /* Ctrl-D */, 6);
+    handle_key(&s, 4 /* Ctrl-D */);
     ASSERT_EQ(3, s.visible_entries_head);
     ASSERT_EQ(8, s.visible_entries_tail);
     ASSERT_EQ(3, s.selected_entry);
@@ -262,12 +262,12 @@ TEST ctrl_u_moves_half_page_up(void) {
     build_flat_tree(&tree, 9);
     AppState s = {0};
     init_app_state(&s, &tree, 6);
-    handle_key(&s, &tree, 4, 6);
-    handle_key(&s, &tree, 4, 6);
+    handle_key(&s, 4);
+    handle_key(&s, 4);
     ASSERT_EQ(4, s.visible_entries_head);
     ASSERT_EQ(9, s.visible_entries_tail);
     ASSERT_EQ(6, s.selected_entry);
-    handle_key(&s, &tree, 21 /* Ctrl-U */, 6);
+    handle_key(&s, 21 /* Ctrl-U */);
     ASSERT_EQ(1, s.visible_entries_head);
     ASSERT_EQ(6, s.visible_entries_tail);
     ASSERT_EQ(3, s.selected_entry);
@@ -286,7 +286,8 @@ TEST resize_recomputes_tail(void) {
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(3, s.visible_entries_tail);
     ASSERT_EQ(0, s.selected_entry);
-    handle_key(&s, &tree, KEY_RESIZE, 8);
+    LINES = 8; /* Simulate resize with more lines */
+    handle_key(&s, KEY_RESIZE);
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(7, s.visible_entries_tail);
     ASSERT_EQ(0, s.selected_entry);

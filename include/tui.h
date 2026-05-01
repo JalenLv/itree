@@ -23,7 +23,7 @@ int run_tui(FileTree *file_tree);
  */
 void update_tail_given_head(AppState *app_state);
 void update_head_given_tail(AppState *app_state);
-int  init_app_state(AppState *app_state, FileTree *file_tree);
+int  init_app_state(AppState *app_state, FileTree *file_tree, int lines);
 
 /**
  * Handles a single keystroke against the application state.
