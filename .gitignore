@@ -6,6 +6,7 @@ config.mk
 
 # Clang cache
 .cache/
+compile_commands.json
 
 # VSCode
 .vscode/
