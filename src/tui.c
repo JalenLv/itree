@@ -424,7 +424,7 @@ int handle_key(AppState *app_state, int ch) {
 
 // Helpers' implementation
 static int ctrl_d_shift_down_page(AppState *app_state) {
-    for (int i = 0; i < app_state->rows * 2; ++i) {
+    for (int i = 0; i < app_state->rows / 2; ++i) {
         if (next(app_state->all_entries, app_state->visible_entries_tail) != 0) {
             // If not at the end, slide window down
             // Keep selected entry relative stationary to the window
@@ -445,7 +445,7 @@ static int ctrl_d_shift_down_page(AppState *app_state) {
 }
 
 static int ctrl_u_shift_up_page(AppState *app_state) {
-    for (int i = 0; i < app_state->rows * 2; ++i) {
+    for (int i = 0; i < app_state->rows / 2; ++i) {
         if (app_state->visible_entries_head != 0) {
             // If not at the start, slide window up
             // Keep selected entry relative stationary to the window
