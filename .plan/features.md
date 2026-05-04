@@ -15,7 +15,7 @@ sion] [--help] [--] [directory ...]
 - [X] Add --no-tui flag.
 - [X] Add -a/--hidden flag.
 - [X] Add left/right arrow to move left/right in the TUI in case of long file names.
-- [ ] Add mouse support: click to select, double-click to expand/collapse, scroll to move up/down.
+- [X] Add mouse support: click to select, double-click to expand/collapse, scroll to move up/down.
 - [ ] Add search/filter in the TUI with /pattern, then jump between matches with n / N.
 - [ ] Add --dirsfirst and --filesfirst flags.
 - [ ] Add d to hide entries, u to undo hiding, U to unhide all, and r to undo the undos.

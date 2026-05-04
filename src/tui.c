@@ -3,74 +3,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static int pad_cell_is_blank(WINDOW *pad, int y, int x) {
-#ifdef WIDE_NCURSES
-    cchar_t c;
-    if (mvwin_wch(pad, y, x, &c) == ERR) return 1;
-    wchar_t buf[CCHARW_MAX];
-    attr_t attrs;
-    short pair;
-    if (getcchar(&c, buf, &attrs, &pair, NULL) == ERR) return 1;
-    return buf[0] == L' ' || buf[0] == L'\0';
-#else
-    chtype c = mvwinch(pad, y, x);
-    return ((c & A_CHARTEXT) == ' ' || (c & A_CHARTEXT) == ERR);
-#endif
-}
+// Helpers' declaration
+static int ctrl_d_shift_down_page(AppState *app_state);
+static int ctrl_u_shift_up_page(AppState *app_state);
+static int handle_mouse(AppState *app_state);
+static int mouse_left_click(AppState *app_state, MEVENT *event);
+static int mouse_left_double_click(AppState *app_state, MEVENT *event);
+static int mouse_scroll_up(AppState *app_state);
+static int mouse_scroll_down(AppState *app_state);
 
-static void pad_cell_copy(WINDOW *dst, int dy, int dx, WINDOW *src, int sy, int sx) {
-#ifdef WIDE_NCURSES
-    // If sx lands on the second cell of a 2-column glyph, ncurses fills it
-    // with a padding wchar (L'\0'); back off one cell so we don't copy a half-glyph.
-    cchar_t c;
-    if (mvwin_wch(src, sy, sx, &c) == ERR) {
-        mvwaddch(dst, dy, dx, ' ');
-        return;
-    }
-    wchar_t buf[CCHARW_MAX];
-    attr_t attrs;
-    short pair;
-    if (getcchar(&c, buf, &attrs, &pair, NULL) != ERR && buf[0] == L'\0' && sx > 0) {
-        if (mvwin_wch(src, sy, sx - 1, &c) == ERR) {
-            mvwaddch(dst, dy, dx, ' ');
-            return;
-        }
-    }
-    mvwadd_wch(dst, dy, dx, &c);
-#else
-    chtype c = wmove(src, sy, sx) == ERR ? ' ' : winch(src);
-    mvwaddch(dst, dy, dx, c);
-#endif
-}
-
-static int entry_display_width(FileTreeNode *node) {
-    int len = 2 + node->depth * 4 + 4;
-    len += (node->type == DIRECTORY_NODE) ? 1 : ((node->type == LINK_NODE) ? 4 : 0);
-#ifdef WIDE_NCURSES
-    wchar_t wname[512];
-    size_t wn = mbstowcs(wname, node->name, 512);
-    if (wn == (size_t)(-1)) {
-        len += (int)strlen(node->name);
-    } else {
-        int w = wcswidth(wname, wn);
-        len += (w < 0) ? (int)wn : w;
-    }
-    if (node->type == LINK_NODE) {
-        wchar_t wtarget[512];
-        size_t wt = mbstowcs(wtarget, node->target, 512);
-        if (wt == (size_t)(-1)) {
-            len += (int)strlen(node->target);
-        } else {
-            int w = wcswidth(wtarget, wt);
-            len += (w < 0) ? (int)wt : w;
-        }
-    }
-#else
-    len += (int)strlen(node->name);
-    len += (node->type == LINK_NODE) ? (int)strlen(node->target) : 0;
-#endif
-    return len;
-}
+static int pad_cell_is_blank(WINDOW *pad, int y, int x);
+static void pad_cell_copy(WINDOW *dst, int dy, int dx, WINDOW *src, int sy, int sx);
+static int entry_display_width(FileTreeNode *node);
 
 int run_tui(FileTree *file_tree) {
 #ifdef WIDE_NCURSES
@@ -88,6 +32,7 @@ int run_tui(FileTree *file_tree) {
     curs_set(0);                // Hide cursor
     intrflush(stdscr, FALSE);   // Don't flush on interrupt keys
     scrollok(stdscr, FALSE);    // Disable scrolling
+    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL); // Enable mouse events
 
     refresh();
 
@@ -106,6 +51,7 @@ int run_tui(FileTree *file_tree) {
     int ch;
     while (1) {
         ch = getch();
+        // TODO("Handle handle_key error");
         if (handle_key(&app_state, ch) != 0) break;
         if (render_tui(&app_state) != 0) {
             fprintf(stderr, "Error: Failed to draw visible entries.\n");
@@ -452,44 +398,12 @@ int handle_key(AppState *app_state, int ch) {
         }
         case 4: { // Ctrl-D
             // Go down half a page
-            for (int i = 0; i < app_state->rows / 2; ++i) {
-                if (next(app_state->all_entries, app_state->visible_entries_tail) != 0) {
-                    // If not at the end, slide window down
-                    // Keep selected entry relative stationary to the window
-                    app_state->visible_entries_head = next(app_state->all_entries, app_state->visible_entries_head);
-                    app_state->visible_entries_tail = next(app_state->all_entries, app_state->visible_entries_tail);
-                    app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
-                    update_tree_pad(app_state);
-                    if (app_state->tree_pad == NULL) {
-                        fprintf(stderr, "Error: Failed to update tree pad.\n");
-                        return 1;
-                    }
-                } else if (next(app_state->all_entries, app_state->selected_entry) != 0) {
-                    // At the end, slide selected entry down only
-                    app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
-                }
-            }
+            ctrl_d_shift_down_page(app_state);
             break;
         }
         case 21: { // Ctrl-U
             // Go up half a page
-            for (int i = 0; i < app_state->rows / 2; ++i) {
-                if (app_state->visible_entries_head != 0) {
-                    // If not at the start, slide window up
-                    // Keep selected entry relative stationary to the window
-                    app_state->visible_entries_head = prev(app_state->all_entries, app_state->visible_entries_head);
-                    app_state->visible_entries_tail = prev(app_state->all_entries, app_state->visible_entries_tail);
-                    app_state->selected_entry = prev(app_state->all_entries, app_state->selected_entry);
-                    update_tree_pad(app_state);
-                    if (app_state->tree_pad == NULL) {
-                        fprintf(stderr, "Error: Failed to update tree pad.\n");
-                        return 1;
-                    }
-                } else if (app_state->selected_entry != 0) {
-                    // At the start, slide selected entry up only
-                    app_state->selected_entry = prev(app_state->all_entries, app_state->selected_entry);
-                }
-            }
+            ctrl_u_shift_up_page(app_state);
             break;
         }
         case KEY_LEFT: { // Go left half a page
@@ -500,6 +414,257 @@ int handle_key(AppState *app_state, int ch) {
             app_state->col_offset += app_state->cols / 2;
             break;
         }
+        case KEY_MOUSE: {
+            handle_mouse(app_state);
+            break;
+        }
     }
     return 0;
+}
+
+// Helpers' implementation
+static int ctrl_d_shift_down_page(AppState *app_state) {
+    for (int i = 0; i < app_state->rows * 2; ++i) {
+        if (next(app_state->all_entries, app_state->visible_entries_tail) != 0) {
+            // If not at the end, slide window down
+            // Keep selected entry relative stationary to the window
+            app_state->visible_entries_head = next(app_state->all_entries, app_state->visible_entries_head);
+            app_state->visible_entries_tail = next(app_state->all_entries, app_state->visible_entries_tail);
+            app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
+            update_tree_pad(app_state);
+            if (app_state->tree_pad == NULL) {
+                fprintf(stderr, "Error: Failed to update tree pad.\n");
+                return 1;
+            }
+        } else if (next(app_state->all_entries, app_state->selected_entry) != 0) {
+            // At the end, slide selected entry down only
+            app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
+        }
+    }
+    return 0;
+}
+
+static int ctrl_u_shift_up_page(AppState *app_state) {
+    for (int i = 0; i < app_state->rows * 2; ++i) {
+        if (app_state->visible_entries_head != 0) {
+            // If not at the start, slide window up
+            // Keep selected entry relative stationary to the window
+            app_state->visible_entries_head = prev(app_state->all_entries, app_state->visible_entries_head);
+            app_state->visible_entries_tail = prev(app_state->all_entries, app_state->visible_entries_tail);
+            app_state->selected_entry = prev(app_state->all_entries, app_state->selected_entry);
+            update_tree_pad(app_state);
+            if (app_state->tree_pad == NULL) {
+                fprintf(stderr, "Error: Failed to update tree pad.\n");
+                return 1;
+            }
+        } else if (app_state->selected_entry != 0) {
+            // At the start, slide selected entry up only
+            app_state->selected_entry = prev(app_state->all_entries, app_state->selected_entry);
+        }
+    }
+    return 0;
+}
+
+static int handle_mouse(AppState *app_state) {
+    USED(app_state);
+
+    MEVENT event;
+    if (getmouse(&event) == OK) {
+        if (event.bstate & BUTTON1_CLICKED) {
+            // Left click to select entry or click on arrow to select and toggle expansion
+            mouse_left_click(app_state, &event);
+        } else if (event.bstate & BUTTON1_DOUBLE_CLICKED) { // Left double click to select and toggle expansion
+            mouse_left_double_click(app_state, &event);
+        } else if (event.bstate & BUTTON4_PRESSED) { // Scroll up 1/10 page
+            mouse_scroll_up(app_state);
+        } else if (event.bstate & BUTTON5_PRESSED) { // Scroll down 1/10 page
+            mouse_scroll_down(app_state);
+        } else return 0;
+    }
+    return 1;
+}
+
+static int mouse_left_click(AppState *app_state, MEVENT *event) {
+    int click_row = event->y;
+    int click_col = event->x;
+    if (click_col < 0 || click_col >= app_state->cols || click_row < 0 || click_row >= app_state->rows) {
+        return 0; // Click outside of terminal bounds, ignore
+    }
+
+    int row = 0;
+    int i = app_state->visible_entries_head;
+    do {
+        if (row == click_row) break;
+        row++;
+        i = next(app_state->all_entries, i);
+    } while (i != 0 && i <= app_state->visible_entries_tail);
+
+    FileTreeNode *clicked_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
+    int pos_arrow = 2 + clicked_node->depth * 4 + 2 - app_state->col_offset;
+    int pos_begin_name = 2 + clicked_node->depth * 4 + 4 - app_state->col_offset;
+    int pos_end_name = entry_display_width(clicked_node) - app_state->col_offset;
+
+    if (click_col >= pos_arrow - 1 && click_col <= pos_arrow + 1 && clicked_node->type == DIRECTORY_NODE) {
+        // Click on arrow area, toggle expansion if directory
+        clicked_node->collapsed = !clicked_node->collapsed;
+        app_state->selected_entry = i;
+        update_tail_given_head(app_state);
+        update_tree_pad(app_state);
+        if (app_state->tree_pad == NULL) {
+            fprintf(stderr, "Error: Failed to update tree pad.\n");
+            return 1;
+        }
+    } else if (click_col >= pos_begin_name && click_col < pos_end_name) {
+        // Click on name area, select entry
+        app_state->selected_entry = i;
+    }
+
+    return 0;
+}
+
+static int mouse_left_double_click(AppState *app_state, MEVENT *event) {
+    int click_row = event->y;
+    int click_col = event->x;
+    if (click_col < 0 || click_col >= app_state->cols || click_row < 0 || click_row >= app_state->rows) {
+        return 0; // Click outside of terminal bounds, ignore
+    }
+
+    int row = 0;
+    int i = app_state->visible_entries_head;
+    do {
+        if (row == click_row) break;
+        row++;
+        i = next(app_state->all_entries, i);
+    } while (i != 0 && i <= app_state->visible_entries_tail);
+
+    FileTreeNode *clicked_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
+    int pos_begin_name = 2 + clicked_node->depth * 4 + 4 - app_state->col_offset;
+    int pos_end_name = entry_display_width(clicked_node) - app_state->col_offset;
+    if (click_col >= pos_begin_name && click_col < pos_end_name) {
+        // Double click on name area, toggle expansion if directory and select entry
+        if (clicked_node->type == DIRECTORY_NODE) {
+            clicked_node->collapsed = !clicked_node->collapsed;
+            update_tail_given_head(app_state);
+            update_tree_pad(app_state);
+            if (app_state->tree_pad == NULL) {
+                fprintf(stderr, "Error: Failed to update tree pad.\n");
+                return 1;
+            }
+        }
+        app_state->selected_entry = i;
+    }
+
+    return 0;
+}
+
+static int mouse_scroll_up(AppState *app_state) {
+    for (int i = 0; i < app_state->rows / 10; ++i) {
+        if (app_state->visible_entries_head != 0) {
+            // If not at the start, slide window up
+            // Keep selected entry unchanged if it's within the window
+            // Otherwise move it with the window
+            // Do nothing if at the top
+            app_state->visible_entries_head = prev(app_state->all_entries, app_state->visible_entries_head);
+            app_state->visible_entries_tail = prev(app_state->all_entries, app_state->visible_entries_tail);
+            if (app_state->selected_entry > app_state->visible_entries_tail) {
+                app_state->selected_entry = app_state->visible_entries_tail;
+            }
+            update_tree_pad(app_state);
+            if (app_state->tree_pad == NULL) {
+                fprintf(stderr, "Error: Failed to update tree pad.\n");
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+static int mouse_scroll_down(AppState *app_state) {
+    for (int i = 0; i < app_state->rows / 10; ++i) {
+        if (next(app_state->all_entries, app_state->visible_entries_tail) != 0) {
+            // If not at the end, slide window down
+            // Keep selected entry unchanged if it's within the window
+            // Otherwise move it with the window
+            // Do nothing if at the bottom
+            app_state->visible_entries_head = next(app_state->all_entries, app_state->visible_entries_head);
+            app_state->visible_entries_tail = next(app_state->all_entries, app_state->visible_entries_tail);
+            if (app_state->selected_entry < app_state->visible_entries_head) {
+                app_state->selected_entry = app_state->visible_entries_head;
+            }
+            update_tree_pad(app_state);
+            if (app_state->tree_pad == NULL) {
+                fprintf(stderr, "Error: Failed to update tree pad.\n");
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int pad_cell_is_blank(WINDOW *pad, int y, int x) {
+#ifdef WIDE_NCURSES
+    cchar_t c;
+    if (mvwin_wch(pad, y, x, &c) == ERR) return 1;
+    wchar_t buf[CCHARW_MAX];
+    attr_t attrs;
+    short pair;
+    if (getcchar(&c, buf, &attrs, &pair, NULL) == ERR) return 1;
+    return buf[0] == L' ' || buf[0] == L'\0';
+#else
+    chtype c = mvwinch(pad, y, x);
+    return ((c & A_CHARTEXT) == ' ' || (c & A_CHARTEXT) == ERR);
+#endif
+}
+
+static void pad_cell_copy(WINDOW *dst, int dy, int dx, WINDOW *src, int sy, int sx) {
+#ifdef WIDE_NCURSES
+    // If sx lands on the second cell of a 2-column glyph, ncurses fills it
+    // with a padding wchar (L'\0'); back off one cell so we don't copy a half-glyph.
+    cchar_t c;
+    if (mvwin_wch(src, sy, sx, &c) == ERR) {
+        mvwaddch(dst, dy, dx, ' ');
+        return;
+    }
+    wchar_t buf[CCHARW_MAX];
+    attr_t attrs;
+    short pair;
+    if (getcchar(&c, buf, &attrs, &pair, NULL) != ERR && buf[0] == L'\0' && sx > 0) {
+        if (mvwin_wch(src, sy, sx - 1, &c) == ERR) {
+            mvwaddch(dst, dy, dx, ' ');
+            return;
+        }
+    }
+    mvwadd_wch(dst, dy, dx, &c);
+#else
+    chtype c = wmove(src, sy, sx) == ERR ? ' ' : winch(src);
+    mvwaddch(dst, dy, dx, c);
+#endif
+}
+
+static int entry_display_width(FileTreeNode *node) {
+    int len = 2 + node->depth * 4 + 4;
+    len += (node->type == DIRECTORY_NODE) ? 1 : ((node->type == LINK_NODE) ? 4 : 0);
+#ifdef WIDE_NCURSES
+    wchar_t wname[512];
+    size_t wn = mbstowcs(wname, node->name, 512);
+    if (wn == (size_t)(-1)) {
+        len += (int)strlen(node->name);
+    } else {
+        int w = wcswidth(wname, wn);
+        len += (w < 0) ? (int)wn : w;
+    }
+    if (node->type == LINK_NODE) {
+        wchar_t wtarget[512];
+        size_t wt = mbstowcs(wtarget, node->target, 512);
+        if (wt == (size_t)(-1)) {
+            len += (int)strlen(node->target);
+        } else {
+            int w = wcswidth(wtarget, wt);
+            len += (w < 0) ? (int)wt : w;
+        }
+    }
+#else
+    len += (int)strlen(node->name);
+    len += (node->type == LINK_NODE) ? (int)strlen(node->target) : 0;
+#endif
+    return len;
 }
