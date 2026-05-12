@@ -2,6 +2,7 @@
 #define FILE_TREE_H
 
 #include "helpers.h"
+#include <limits.h>
 
 typedef struct FileTreeNode FileTreeNode;
 typedef struct {
@@ -34,14 +35,24 @@ typedef struct FileTreeNode {
 int create_file_tree_from_path(FileTree *file_tree, const Args *args);
 
 /**
+ * next(last_visible) is FILE_TREE_SENTINEL_TAIL
+ * next(FILE_TREE_SENTINEL_HEAD) is the first visible index
+ * next(FILE_TREE_SENTINEL_TAIL) is FILE_TREE_SENTINEL_TAIL
+ * prev(first_visible) is FILE_TREE_SENTINEL_HEAD
+ * prev(FILE_TREE_SENTINEL_TAIL) is the last visible index
+ * prev(FILE_TREE_SENTINEL_HEAD) is FILE_TREE_SENTINEL_HEAD
+ */
+#define FILE_TREE_SENTINEL_HEAD (INT_MIN)
+#define FILE_TREE_SENTINEL_TAIL (INT_MAX)
+
+/**
  * Given a file tree and a visible node index, returns the next visible index.
  * Skips over collapsed directories.
  * 
- * Returns the next visible index.
- * Returns 0 if the given index is the last visible index. (Because 0 is always the first visible index)
- * Returns -1 if the given index is invalid.
+ * Returns -1 on failure (e.g. invalid index)
  * 
  * Behavior is undefined if the given index is not visible.
+ * Assumes file_tree is non-empty.
  */
 int next(FileTree *file_tree, int idx);
 
@@ -49,11 +60,10 @@ int next(FileTree *file_tree, int idx);
  * Given a file tree and a visible node index, returns the previous visible index.
  * Skips over collapsed directories.
  * 
- * Returns the previous visible index.
- * Returns the last visible index if the given index is 0. (Because 0 is always the first visible index)
- * Returns -1 if the given index is invalid.
+ * Returns -1 on failure (e.g. invalid index)
  * 
  * Behavior is undefined if the given index is not visible.
+ * Assumes file_tree is non-empty.
  */
 int prev(FileTree *file_tree, int idx);
 

@@ -88,8 +88,7 @@ int draw_visible_entries(AppState *app_state) {
     werase(app_state->tree_pad);
 
     int row = 0;
-    int i = app_state->visible_entries_head;
-    do {
+    for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         // Do the drawing
         FileTreeNode *node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
         // Leave 2 spaces on the left for the selected entry arrow
@@ -150,11 +149,10 @@ int draw_visible_entries(AppState *app_state) {
         if (i == app_state->selected_entry) {
             wattroff(app_state->tree_pad, A_STANDOUT);
         }
-        row++;
 
-        // Update i
-        i = next(app_state->all_entries, i);
-    } while (i != 0 && i <= app_state->visible_entries_tail);
+        // Update row
+        row++;
+    }
 
     pnoutrefresh(app_state->tree_pad, 0, app_state->col_offset, 0, 0, app_state->rows - 1, app_state->cols - 1);
     return 0;
@@ -171,8 +169,7 @@ int draw_overflow_indicator(AppState *app_state) {
     werase(of_ind_win);
 
     int row = 0;
-    int i = app_state->visible_entries_head;
-    do {
+    for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         int is_overflowing = 0;
         for (int col = app_state->cols + app_state->col_offset; col < app_state->tree_pad_cols; ++col) {
             if (!pad_cell_is_blank(app_state->tree_pad, row, col)) {
@@ -190,8 +187,7 @@ int draw_overflow_indicator(AppState *app_state) {
                           app_state->cols + app_state->col_offset - 1);
         }
         row++;
-        i = next(app_state->all_entries, i);
-    } while (i != 0 && i <= app_state->visible_entries_tail);
+    }
 
     wnoutrefresh(of_ind_win);
     delwin(of_ind_win);
@@ -200,8 +196,7 @@ int draw_overflow_indicator(AppState *app_state) {
 
 int draw_selected_entry_arrow(AppState *app_state) {
     int row = 0;
-    int i = app_state->visible_entries_head;
-    do {
+    for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         if (i == app_state->selected_entry) {
             WINDOW *sel_arrow_win = newwin(1, 4, row, 0);
             if (sel_arrow_win == NULL) {
@@ -216,8 +211,7 @@ int draw_selected_entry_arrow(AppState *app_state) {
             return 0;
         }
         row++;
-        i = next(app_state->all_entries, i);
-    } while (i != 0 && i <= app_state->visible_entries_tail);
+    }
 
     return 1; // Unreachable
 }
@@ -225,33 +219,30 @@ int draw_selected_entry_arrow(AppState *app_state) {
 void update_tail_given_head(AppState *app_state) {
     int vis_ent_cnt = 0;
     int i = app_state->visible_entries_head, next_i;
-    while ((next_i = next(app_state->all_entries, i)) != 0) {
+    while ((next_i = next(app_state->all_entries, i)) != FILE_TREE_SENTINEL_TAIL) {
         if (++vis_ent_cnt >= app_state->rows) break;
         i = next_i;
     }
-    app_state->visible_entries_tail = i;
+    app_state->visible_entries_tail = next_i;
 }
 
 void update_head_given_tail(AppState *app_state) {
     int vis_ent_cnt = 0;
-    int i = app_state->visible_entries_tail;
-    while (i != 0) {
+    int i = prev(app_state->all_entries, app_state->visible_entries_tail), prev_i;
+    while ((prev_i = prev(app_state->all_entries, i)) != FILE_TREE_SENTINEL_HEAD) {
         if (++vis_ent_cnt >= app_state->rows) break;
-        i = prev(app_state->all_entries, i);
+        i = prev_i;
     }
     app_state->visible_entries_head = i;
 }
 
 void update_tree_pad(AppState *app_state) {
     int max_len = 0;
-    int i = app_state->visible_entries_head;
-    do {
-        // Do-while to handle the case when visible_entries_head == root (0)
+    for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         FileTreeNode *node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
         int len = entry_display_width(node);
         if (len > max_len) max_len = len;
-        i = next(app_state->all_entries, i);
-    } while (i != 0 && i <= app_state->visible_entries_tail);
+    }
 
     // Update tree pad if necessary
     if (app_state->tree_pad == NULL ||
@@ -290,8 +281,8 @@ int handle_key(AppState *app_state, int ch) {
         }
         case KEY_DOWN:
         case 'j': {
-            int is_selected_at_bottom = (app_state->selected_entry == app_state->visible_entries_tail);
-            int is_window_at_bottom = (next(app_state->all_entries, app_state->visible_entries_tail) == 0);
+            int is_selected_at_bottom = (next(app_state->all_entries, app_state->selected_entry) == app_state->visible_entries_tail);
+            int is_window_at_bottom = (app_state->visible_entries_tail == FILE_TREE_SENTINEL_TAIL);
             if (!is_selected_at_bottom) {
                 // Move selection down
                 app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
@@ -299,7 +290,7 @@ int handle_key(AppState *app_state, int ch) {
                 // If not at the end, slide window down
                 app_state->visible_entries_head = next(app_state->all_entries, app_state->visible_entries_head);
                 app_state->visible_entries_tail = next(app_state->all_entries, app_state->visible_entries_tail);
-                app_state->selected_entry = app_state->visible_entries_tail;
+                app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
                 update_tree_pad(app_state);
                 if (app_state->tree_pad == NULL) {
                     fprintf(stderr, "Error: Failed to update tree pad.\n");
@@ -330,9 +321,9 @@ int handle_key(AppState *app_state, int ch) {
                 }
             } else {
                 // At the start, loop back to bottom
-                app_state->visible_entries_tail = prev(app_state->all_entries, 0);
+                app_state->visible_entries_tail = FILE_TREE_SENTINEL_TAIL;
                 update_head_given_tail(app_state);
-                app_state->selected_entry = app_state->visible_entries_tail;
+                app_state->selected_entry = prev(app_state->all_entries, app_state->visible_entries_tail);
                 update_tree_pad(app_state);
                 if (app_state->tree_pad == NULL) {
                     fprintf(stderr, "Error: Failed to update tree pad.\n");
@@ -371,8 +362,8 @@ int handle_key(AppState *app_state, int ch) {
             app_state->rows = LINES;
             app_state->cols = COLS;
             update_tail_given_head(app_state);
-            if (app_state->selected_entry > app_state->visible_entries_tail) {
-                app_state->selected_entry = app_state->visible_entries_tail;
+            if (app_state->selected_entry >= app_state->visible_entries_tail) {
+                app_state->selected_entry = prev(app_state->all_entries, app_state->visible_entries_tail);
             }
             update_tree_pad(app_state);
             if (app_state->tree_pad == NULL) {
@@ -386,8 +377,8 @@ int handle_key(AppState *app_state, int ch) {
             break;
         }
         case 'G': { // Go to bottom
-            app_state->visible_entries_tail = prev(app_state->all_entries, 0);
-            app_state->selected_entry = app_state->visible_entries_tail;
+            app_state->visible_entries_tail = FILE_TREE_SENTINEL_TAIL;
+            app_state->selected_entry = prev(app_state->all_entries, app_state->visible_entries_tail);
             update_head_given_tail(app_state);
             update_tree_pad(app_state);
             if (app_state->tree_pad == NULL) {
@@ -425,7 +416,7 @@ int handle_key(AppState *app_state, int ch) {
 // Helpers' implementation
 static int ctrl_d_shift_down_page(AppState *app_state) {
     for (int i = 0; i < app_state->rows / 2; ++i) {
-        if (next(app_state->all_entries, app_state->visible_entries_tail) != 0) {
+        if (app_state->visible_entries_tail != FILE_TREE_SENTINEL_TAIL) {
             // If not at the end, slide window down
             // Keep selected entry relative stationary to the window
             app_state->visible_entries_head = next(app_state->all_entries, app_state->visible_entries_head);
@@ -436,7 +427,7 @@ static int ctrl_d_shift_down_page(AppState *app_state) {
                 fprintf(stderr, "Error: Failed to update tree pad.\n");
                 return 1;
             }
-        } else if (next(app_state->all_entries, app_state->selected_entry) != 0) {
+        } else if (next(app_state->all_entries, app_state->selected_entry) != FILE_TREE_SENTINEL_TAIL) {
             // At the end, slide selected entry down only
             app_state->selected_entry = next(app_state->all_entries, app_state->selected_entry);
         }
@@ -487,17 +478,14 @@ static int handle_mouse(AppState *app_state) {
 static int mouse_left_click(AppState *app_state, MEVENT *event) {
     int click_row = event->y;
     int click_col = event->x;
-    if (click_col < 0 || click_col >= app_state->cols || click_row < 0 || click_row >= app_state->rows) {
-        return 0; // Click outside of terminal bounds, ignore
-    }
+    if (click_col < 0 || click_col >= app_state->cols || click_row < 0 || click_row >= app_state->rows) return 0;
 
-    int row = 0;
-    int i = app_state->visible_entries_head;
-    do {
+    int row = 0, i;
+    for (i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         if (row == click_row) break;
         row++;
-        i = next(app_state->all_entries, i);
-    } while (i != 0 && i <= app_state->visible_entries_tail);
+    }
+    if (i == app_state->visible_entries_tail) return 0;
 
     FileTreeNode *clicked_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
     int pos_arrow = 2 + clicked_node->depth * 4 + 2 - app_state->col_offset;
@@ -525,17 +513,14 @@ static int mouse_left_click(AppState *app_state, MEVENT *event) {
 static int mouse_left_double_click(AppState *app_state, MEVENT *event) {
     int click_row = event->y;
     int click_col = event->x;
-    if (click_col < 0 || click_col >= app_state->cols || click_row < 0 || click_row >= app_state->rows) {
-        return 0; // Click outside of terminal bounds, ignore
-    }
+    if (click_col < 0 || click_col >= app_state->cols || click_row < 0 || click_row >= app_state->rows) return 0;
 
-    int row = 0;
-    int i = app_state->visible_entries_head;
-    do {
+    int row = 0, i;
+    for (i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         if (row == click_row) break;
         row++;
-        i = next(app_state->all_entries, i);
-    } while (i != 0 && i <= app_state->visible_entries_tail);
+    }
+    if (i == app_state->visible_entries_tail) return 0;
 
     FileTreeNode *clicked_node = DA_GET_PTR(FileTreeNode *, app_state->all_entries, i);
     int pos_begin_name = 2 + clicked_node->depth * 4 + 4 - app_state->col_offset;
@@ -566,8 +551,8 @@ static int mouse_scroll_up(AppState *app_state) {
             // Do nothing if at the top
             app_state->visible_entries_head = prev(app_state->all_entries, app_state->visible_entries_head);
             app_state->visible_entries_tail = prev(app_state->all_entries, app_state->visible_entries_tail);
-            if (app_state->selected_entry > app_state->visible_entries_tail) {
-                app_state->selected_entry = app_state->visible_entries_tail;
+            if (app_state->selected_entry >= app_state->visible_entries_tail) {
+                app_state->selected_entry = prev(app_state->all_entries, app_state->visible_entries_tail);
             }
             update_tree_pad(app_state);
             if (app_state->tree_pad == NULL) {
@@ -578,9 +563,10 @@ static int mouse_scroll_up(AppState *app_state) {
     }
     return 0;
 }
+
 static int mouse_scroll_down(AppState *app_state) {
     for (int i = 0; i < app_state->rows / 10; ++i) {
-        if (next(app_state->all_entries, app_state->visible_entries_tail) != 0) {
+        if (app_state->visible_entries_tail != FILE_TREE_SENTINEL_TAIL) {
             // If not at the end, slide window down
             // Keep selected entry unchanged if it's within the window
             // Otherwise move it with the window

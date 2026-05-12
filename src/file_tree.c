@@ -151,6 +151,9 @@ int create_file_tree_from_path(FileTree *file_tree, const Args *args) {
 }
 
 int next(FileTree *file_tree, int idx) {
+    if (idx == FILE_TREE_SENTINEL_HEAD) return 0;
+    if (idx == FILE_TREE_SENTINEL_TAIL) return FILE_TREE_SENTINEL_TAIL;
+
     FileTreeNode *node = DA_GET_PTR(FileTreeNode *, file_tree, idx);
     if (node == NULL) {
         return -1;
@@ -158,12 +161,12 @@ int next(FileTree *file_tree, int idx) {
 
     // If the node is a file or a link, return the next index
     if (node->type == FILE_NODE || node->type == LINK_NODE) {
-        return (idx + 1 < file_tree->count) ? idx + 1 : 0;
+        return (idx + 1 < file_tree->count) ? idx + 1 : FILE_TREE_SENTINEL_TAIL;
     }
 
     // If the node is a directory and expanded, return the next index
     if (node->type == DIRECTORY_NODE && node->collapsed == 0) {
-        return (idx + 1 < file_tree->count) ? idx + 1 : 0;
+        return (idx + 1 < file_tree->count) ? idx + 1 : FILE_TREE_SENTINEL_TAIL;
     }
 
     // If the node is a directory and collapsed, skip its children
@@ -175,20 +178,24 @@ int next(FileTree *file_tree, int idx) {
         }
     }
 
-    return 0;
+    // No more visible nodes
+    return FILE_TREE_SENTINEL_TAIL;
 }
 
 int prev(FileTree *file_tree, int idx) {
+    if (idx == 0) return FILE_TREE_SENTINEL_HEAD;
+    if (idx == FILE_TREE_SENTINEL_HEAD) return FILE_TREE_SENTINEL_HEAD;
+    if (idx == FILE_TREE_SENTINEL_TAIL) {
+        int i = 0, next_i;
+        while ((next_i = next(file_tree, i)) != FILE_TREE_SENTINEL_TAIL) {
+            i = next_i;
+        }
+        return i;
+    }
+
     FileTreeNode *node = DA_GET_PTR(FileTreeNode *, file_tree, idx);
     if (node == NULL) {
         return -1;
-    }
-
-    if (idx == 0) {
-        while (next(file_tree, idx) != 0) {
-            idx = next(file_tree, idx);
-        }
-        return idx;
     }
 
     int depth = node->depth;
@@ -205,10 +212,12 @@ int prev(FileTree *file_tree, int idx) {
                 if (DA_GET(FileTreeNode, file_tree, i).collapsed) {
                     candidate = i;
                 }
-                if (--cur_depth == depth) return candidate;
+                if (--cur_depth == depth) {
+                    return candidate;
+                }
             }
         }
     }
 
-    return -1; // should not reach here
+    return -1; // Unreachable
 }

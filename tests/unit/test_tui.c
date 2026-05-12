@@ -40,8 +40,8 @@ TEST init_app_state_with_window_smaller_than_tree(void) {
     ASSERT_EQ(0, init_app_state(&s, &tree, 4 /* lines */));
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(0, s.selected_entry);
-    /* tail is the 4th visible entry: index 3 */
-    ASSERT_EQ(3, s.visible_entries_tail);
+    /* tail is the next of 4th visible entry */
+    ASSERT_EQ(4, s.visible_entries_tail);
     delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -54,8 +54,8 @@ TEST init_app_state_with_window_larger_than_tree(void) {
     ASSERT_EQ(0, init_app_state(&s, &tree, 100));
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(0, s.selected_entry);
-    /* tail should be the last node, idx 3 */
-    ASSERT_EQ(3, s.visible_entries_tail);
+    /* tail should be the next of the last node, which is the sentinel tail */
+    ASSERT_EQ(FILE_TREE_SENTINEL_TAIL, s.visible_entries_tail);
     delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -113,11 +113,11 @@ TEST j_at_window_bottom_slides_window(void) {
     handle_key(&s, 'j'); /* sel=3 (bottom) */
     ASSERT_EQ(3, s.selected_entry);
     ASSERT_EQ(0, s.visible_entries_head);
-    ASSERT_EQ(3, s.visible_entries_tail);
+    ASSERT_EQ(4, s.visible_entries_tail);
     /* Next j should slide window down by one */
     handle_key(&s, 'j');
     ASSERT_EQ(1, s.visible_entries_head);
-    ASSERT_EQ(4, s.visible_entries_tail);
+    ASSERT_EQ(5, s.visible_entries_tail);
     ASSERT_EQ(4, s.selected_entry);
     delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
@@ -130,7 +130,7 @@ TEST j_at_tree_end_wraps_to_top(void) {
     AppState s = {0};
     init_app_state(&s, &tree, 100);
     /* Move selection to last node */
-    while (s.selected_entry != s.visible_entries_tail) handle_key(&s, 'j');
+    while (next(&tree, s.selected_entry) != FILE_TREE_SENTINEL_TAIL) handle_key(&s, 'j');
     /* When window holds entire tree, j on last selected just wraps via next() */
     handle_key(&s, 'j');
     ASSERT_EQ(0, s.selected_entry);
@@ -248,7 +248,7 @@ TEST G_jumps_to_bottom(void) {
     init_app_state(&s, &tree, 4);
     handle_key(&s, 'G');
     ASSERT_EQ(7, s.selected_entry);
-    ASSERT_EQ(7, s.visible_entries_tail);
+    ASSERT_EQ(FILE_TREE_SENTINEL_TAIL, s.visible_entries_tail);
     delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -258,14 +258,14 @@ TEST ctrl_d_moves_half_page_down(void) {
     /* Tree: 10 nodes (root + f00..f08), all visible. lines=6, half=3.
      * Init: head=0, sel=0, tail=5 (six visible: 0..5).
      * Ctrl-D iterates 3 times; each slides window down by 1.
-     * Final: head=3, tail=8, sel=3. */
+     * Final: head=3, tail=9, sel=3. */
     FileTree tree = {0};
     build_flat_tree(&tree, 9);
     AppState s = {0};
     init_app_state(&s, &tree, 6);
     handle_key(&s, 4 /* Ctrl-D */);
     ASSERT_EQ(3, s.visible_entries_head);
-    ASSERT_EQ(8, s.visible_entries_tail);
+    ASSERT_EQ(9, s.visible_entries_tail);
     ASSERT_EQ(3, s.selected_entry);
     delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
@@ -274,12 +274,12 @@ TEST ctrl_d_moves_half_page_down(void) {
 
 TEST ctrl_u_moves_half_page_up(void) {
     /* Tree: 10 nodes. lines=6, half=3.
-     * After 1st Ctrl-D (3 slides): head=3, tail=8, sel=3.
-     * After 2nd Ctrl-D: 1st iter slides to head=4/tail=9/sel=4; 2nd & 3rd
+     * After 1st Ctrl-D (3 slides): head=3, tail=9, sel=3.
+     * After 2nd Ctrl-D: 1st iter slides to head=4/tail=SENTINEL_TAIL/sel=4; 2nd & 3rd
      * iters are at-end (no slide), only sel advances via next().
-     * Pre-Ctrl-U state: head=4, tail=9, sel=6.
+     * Pre-Ctrl-U state: head=4, tail=SENTINEL_TAIL, sel=6.
      * Ctrl-U iterates 3 times; each slides window up by 1 and sel back by 1.
-     * Final: head=1, tail=6, sel=3. */
+     * Final: head=1, tail=7, sel=3. */
     FileTree tree = {0};
     build_flat_tree(&tree, 9);
     AppState s = {0};
@@ -287,11 +287,11 @@ TEST ctrl_u_moves_half_page_up(void) {
     handle_key(&s, 4);
     handle_key(&s, 4);
     ASSERT_EQ(4, s.visible_entries_head);
-    ASSERT_EQ(9, s.visible_entries_tail);
+    ASSERT_EQ(FILE_TREE_SENTINEL_TAIL, s.visible_entries_tail);
     ASSERT_EQ(6, s.selected_entry);
     handle_key(&s, 21 /* Ctrl-U */);
     ASSERT_EQ(1, s.visible_entries_head);
-    ASSERT_EQ(6, s.visible_entries_tail);
+    ASSERT_EQ(7, s.visible_entries_tail);
     ASSERT_EQ(3, s.selected_entry);
     delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);
@@ -299,20 +299,20 @@ TEST ctrl_u_moves_half_page_up(void) {
 }
 
 TEST resize_recomputes_tail(void) {
-    /* Tree: 10 nodes. lines=4 → tail=3 (visible: 0,1,2,3).
-     * KEY_RESIZE with lines=8 → tail=7 (visible: 0..7).
+    /* Tree: 10 nodes. lines=4 → tail=4 (visible: 0,1,2,3).
+     * KEY_RESIZE with lines=8 → tail=8 (visible: 0..7).
      * sel stays at 0 since 0 <= new tail (no clamp). */
     FileTree tree = {0};
     build_flat_tree(&tree, 9);
     AppState s = {0};
     init_app_state(&s, &tree, 4);
     ASSERT_EQ(0, s.visible_entries_head);
-    ASSERT_EQ(3, s.visible_entries_tail);
+    ASSERT_EQ(4, s.visible_entries_tail);
     ASSERT_EQ(0, s.selected_entry);
     LINES = 8; /* Simulate resize with more lines */
     handle_key(&s, KEY_RESIZE);
     ASSERT_EQ(0, s.visible_entries_head);
-    ASSERT_EQ(7, s.visible_entries_tail);
+    ASSERT_EQ(8, s.visible_entries_tail);
     ASSERT_EQ(0, s.selected_entry);
     delwin(s.tree_pad);
     DA_FREE(FileTreeNode, &tree);

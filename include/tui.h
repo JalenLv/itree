@@ -16,8 +16,8 @@ typedef struct {
 
     int rows;                   // Ncurses LINES value
     int cols;                   // Ncurses COLS value
-    int visible_entries_head;   // Index of the first visible entry
-    int visible_entries_tail;   // Index of the last visible entry
+    int visible_entries_head;   // Index of the first visible entry (inclusive)
+    int visible_entries_tail;   // Index of next entry of the last visible entry (exclusive)
     int selected_entry;         // Index of the currently selected entry
 
     int col_offset;             // Horizontal scroll offset for the tree view
