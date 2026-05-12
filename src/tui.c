@@ -543,7 +543,7 @@ static int mouse_left_double_click(AppState *app_state, MEVENT *event) {
 }
 
 static int mouse_scroll_up(AppState *app_state) {
-    for (int i = 0; i < app_state->rows / 10; ++i) {
+    for (int i = 0; i < MAX(app_state->rows / 10, 1); ++i) {
         if (app_state->visible_entries_head != 0) {
             // If not at the start, slide window up
             // Keep selected entry unchanged if it's within the window
@@ -565,7 +565,7 @@ static int mouse_scroll_up(AppState *app_state) {
 }
 
 static int mouse_scroll_down(AppState *app_state) {
-    for (int i = 0; i < app_state->rows / 10; ++i) {
+    for (int i = 0; i < MAX(app_state->rows / 10, 1); ++i) {
         if (app_state->visible_entries_tail != FILE_TREE_SENTINEL_TAIL) {
             // If not at the end, slide window down
             // Keep selected entry unchanged if it's within the window
