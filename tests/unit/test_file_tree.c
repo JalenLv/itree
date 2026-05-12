@@ -162,7 +162,7 @@ TEST next_skips_children_of_collapsed_dir(void) {
     ASSERT_EQ(1, next(&tree, 0));
     /* From collapsed subdir, next jumps over its children to "after" */
     ASSERT_EQ(4, next(&tree, 1));
-    /* After is last; wraps */
+    /* After is last; next from it is sentinel tail */
     ASSERT_EQ(FILE_TREE_SENTINEL_TAIL, next(&tree, 4));
 
     DA_FREE(FileTreeNode, &tree);

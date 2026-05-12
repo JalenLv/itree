@@ -256,7 +256,7 @@ TEST G_jumps_to_bottom(void) {
 
 TEST ctrl_d_moves_half_page_down(void) {
     /* Tree: 10 nodes (root + f00..f08), all visible. lines=6, half=3.
-     * Init: head=0, sel=0, tail=5 (six visible: 0..5).
+     * Init: head=0, sel=0, tail=6 (six visible: 0..5).
      * Ctrl-D iterates 3 times; each slides window down by 1.
      * Final: head=3, tail=9, sel=3. */
     FileTree tree = {0};
