@@ -187,4 +187,9 @@ void close_io(FILE *output);
  */
 #define TODO(msg) _Static_assert(0, "TODO: " msg)
 
+/**
+ * USED macro
+ */
+#define USED(x) (void)(x)
+
 #endif // HELPERS_H

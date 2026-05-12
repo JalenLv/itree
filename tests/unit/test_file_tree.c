@@ -144,7 +144,7 @@ TEST next_advances_through_files(void) {
     ASSERT_EQ(1, next(&tree, 0));
     ASSERT_EQ(2, next(&tree, 1));
     ASSERT_EQ(3, next(&tree, 2));
-    ASSERT_EQ(0, next(&tree, 3)); /* wrap to first visible */
+    ASSERT_EQ(FILE_TREE_SENTINEL_TAIL, next(&tree, 3));
 
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -162,14 +162,14 @@ TEST next_skips_children_of_collapsed_dir(void) {
     ASSERT_EQ(1, next(&tree, 0));
     /* From collapsed subdir, next jumps over its children to "after" */
     ASSERT_EQ(4, next(&tree, 1));
-    /* After is last; wraps */
-    ASSERT_EQ(0, next(&tree, 4));
+    /* After is last; next from it is sentinel tail */
+    ASSERT_EQ(FILE_TREE_SENTINEL_TAIL, next(&tree, 4));
 
     DA_FREE(FileTreeNode, &tree);
     PASS();
 }
 
-TEST prev_walks_back_to_zero(void) {
+TEST prev_backs_through_files(void) {
     FileTree tree = {0};
     synth_push(&tree, DIRECTORY_NODE, "root", 0, 0, NULL);
     synth_push(&tree, FILE_NODE,      "a",    1, 0, NULL);
@@ -177,8 +177,7 @@ TEST prev_walks_back_to_zero(void) {
 
     ASSERT_EQ(1, prev(&tree, 2));
     ASSERT_EQ(0, prev(&tree, 1));
-    /* prev(0) returns the last visible node */
-    ASSERT_EQ(2, prev(&tree, 0));
+    ASSERT_EQ(FILE_TREE_SENTINEL_HEAD, prev(&tree, 0));
 
     DA_FREE(FileTreeNode, &tree);
     PASS();
@@ -218,7 +217,7 @@ SUITE(file_tree_suite) {
     RUN_TEST(nonexistent_path_errors);
     RUN_TEST(next_advances_through_files);
     RUN_TEST(next_skips_children_of_collapsed_dir);
-    RUN_TEST(prev_walks_back_to_zero);
+    RUN_TEST(prev_backs_through_files);
     RUN_TEST(prev_skips_collapsed_subtree);
     RUN_TEST(next_and_prev_invalid_index);
 }
