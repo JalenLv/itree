@@ -387,13 +387,13 @@ int handle_key(AppState *app_state, int ch) {
             }
             break;
         }
-        case 4: { // Ctrl-D
-            // Go down half a page
+        case 4: // Ctrl-D
+        case 'd': { // Go down half a page
             ctrl_d_shift_down_page(app_state);
             break;
         }
-        case 21: { // Ctrl-U
-            // Go up half a page
+        case 21: // Ctrl-U
+        case 'u': { // Go up half a page
             ctrl_u_shift_up_page(app_state);
             break;
         }
