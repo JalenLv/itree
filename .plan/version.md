@@ -1,0 +1,1 @@
+- Add -v flag to show version information
