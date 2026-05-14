@@ -71,7 +71,7 @@ else
     echo "PASS help_exits_zero"
     pass=$((pass + 1))
 fi
-for flag in "--no-tui" "--show-hidden" "--output" "--help"; do
+for flag in "--no-tui" "--show-hidden" "--output" "--help" "--version"; do
     if grep -q -- "$flag" <<<"$help_out"; then
         echo "PASS help_mentions_${flag#--}"
         pass=$((pass + 1))
@@ -89,6 +89,13 @@ else
     echo "FAIL short_h_exits_zero"
     fail=$((fail + 1))
 fi
+
+# ---------------------------------------------------------------------------
+# Version flag
+# ---------------------------------------------------------------------------
+
+expect_match version_long  "$GOLDEN/version.txt" "$ITREE" --version
+expect_match version_short "$GOLDEN/version.txt" "$ITREE" -v
 
 # ---------------------------------------------------------------------------
 # Golden-file matches
