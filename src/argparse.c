@@ -66,12 +66,12 @@ int parse_args(int argc, char *argv[], Args *args) {
     return 0;
 }
 
-void print_version() {
+void print_version(void) {
     printf("itree v%d.%d.%d © 2025 - 2026 by Jalen Lyu\n",
            ITREE_VERSION_MAJOR, ITREE_VERSION_MINOR, ITREE_VERSION_PATCH);
 }
 
-void print_help() {
+void print_help(void) {
     printf("Usage: itree [directory] [options]\n");
     printf("       directory defaults to \".\" if not given.\n");
     printf("\nOptions:\n");

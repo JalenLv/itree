@@ -34,11 +34,11 @@ int parse_args(int argc, char *argv[], Args *args);
 /**
  * Prints the help message to stdout.
  */
-void print_help();
+void print_help(void);
 
 /**
  * Prints the version message to stdout.
  */
-void print_version();
+void print_version(void);
 
 #endif // ARGPARSE_H
