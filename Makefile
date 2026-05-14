@@ -84,6 +84,16 @@ test-integration: itree
 
 test-dumps: itree
 	python3 tests/dumps/test_rep.py
+	@echo ""
 	./tests/dumps/runner.py
 
-test: test-unit test-integration test-dumps
+test:
+	@$(MAKE) --no-print-directory test-unit
+	@echo ""
+	@echo "========================================"
+	@echo ""
+	@$(MAKE) --no-print-directory test-integration
+	@echo ""
+	@echo "========================================"
+	@echo ""
+	@$(MAKE) --no-print-directory test-dumps
