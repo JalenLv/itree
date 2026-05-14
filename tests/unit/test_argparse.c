@@ -39,6 +39,7 @@ TEST defaults_when_no_args(void) {
     ASSERT_STR_EQ(".", args.path);
     ASSERT_EQ(NULL, args.output_file);
     ASSERT_EQ(0, args.show_help);
+    ASSERT_EQ(0, args.show_version);
     ASSERT_EQ(0, args.show_hidden);
     ASSERT_EQ(0, args.no_tui);
     PASS();
@@ -73,6 +74,22 @@ TEST long_help_sets_show_help(void) {
     char *argv[] = {"itree", "--help"};
     ASSERT_EQ(0, call_parse(&args, 2, argv));
     ASSERT_EQ(1, args.show_help);
+    PASS();
+}
+
+TEST short_v_sets_show_version(void) {
+    Args args = {0};
+    char *argv[] = {"itree", "-v"};
+    ASSERT_EQ(0, call_parse(&args, 2, argv));
+    ASSERT_EQ(1, args.show_version);
+    PASS();
+}
+
+TEST long_version_sets_show_version(void) {
+    Args args = {0};
+    char *argv[] = {"itree", "--version"};
+    ASSERT_EQ(0, call_parse(&args, 2, argv));
+    ASSERT_EQ(1, args.show_version);
     PASS();
 }
 
@@ -139,6 +156,8 @@ SUITE(argparse_suite) {
     RUN_TEST(long_output_sets_output);
     RUN_TEST(short_h_sets_show_help);
     RUN_TEST(long_help_sets_show_help);
+    RUN_TEST(short_v_sets_show_version);
+    RUN_TEST(long_version_sets_show_version);
     RUN_TEST(short_a_sets_show_hidden);
     RUN_TEST(long_show_hidden_sets_show_hidden);
     RUN_TEST(long_no_tui_sets_no_tui);
