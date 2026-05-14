@@ -8,11 +8,11 @@
 /**
  * Structure to hold command line arguments.
  *
- * path:        Path to the directory to be treed (defaults to ".").
- * output_file: Path to the output file (fall back to stdout).
- * show_hidden: If hidden files should be included in the tree.
- * no_tui:      If TUI should be disabled.
- * show_help:   If help message should be shown.
+ * path:         Path to the directory to be treed (defaults to ".").
+ * output_file:  Path to the output file (fall back to stdout).
+ * show_hidden:  If hidden files should be included in the tree.
+ * no_tui:       If TUI should be disabled.
+ * show_help:    If help message should be shown.
  * show_version: If version message should be shown.
  */
 typedef struct {
