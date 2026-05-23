@@ -1,0 +1,7 @@
+| Check | Priority | Location | Issue | Suggested Solution |
+|---|---|---|---|---|
+|  | P0 | src/file_tree.c:167/172/177 + ~12 sites across file_tree.c & tui.c | Sign-compare / sign-conversion at int↔size_t boundaries (count/capacity are size_t in the DA API; tree indices are int). Blocks release build under -Werror. | Cast at the int→size_t hand-offs (e.g. `(size_t)i`) and rewrite the three int-vs-size_t comparisons. Leave int indices and the INT_MIN/INT_MAX sentinels intact. |
+|  | P1 | src/file_tree.c:94 | walk's descending loop `for (int i = tmp_tree.count - 1; …)` underflows to SIZE_MAX on an empty dir, then narrows to int. Currently harmless because the loop guard rejects it, but it's UB on the conversion. | Rewrite as `for (size_t i = tmp_tree.count; i-- > 0; )`. |
+|  | P1 | src/tui.c:54 + handle_key call sites | handle_key conflates "user pressed q" and "an error occurred" — both return 1, so run_tui's main loop can't tell them apart and a real error looks like a clean exit. (The existing `// TODO("Handle handle_key error")` flags this.) | Distinguish the two — e.g. 0 = continue, 1 = quit, 2 = error — and have run_tui's loop branch on the value (or use a small enum). |
+|  | P2 | src/file_tree.c:7, src/file_tree.c:17 | entry_cmp and walk are extern but have no prototype (-Wmissing-prototypes). | Mark both static. |
+|  | P2 | src/tui.c:285 | handle_key's switch on `ch` has no default arm (-Wswitch-default). | Add `default: break;`. |
