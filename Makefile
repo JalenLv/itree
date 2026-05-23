@@ -19,7 +19,7 @@ OPT_FLAGS := -Og -g3
 WARN_FLAGS += \
 	-Wshadow -Wformat=2 -Wnull-dereference -Wcast-align -Wstrict-prototypes -Wmissing-prototypes \
 	-Wpedantic -Wconversion -Wsign-conversion -Wdouble-promotion -Wundef -Wunused \
-	-Wfloat-equal -Waggregate-return -Wswitch-default -Winline
+	-Wfloat-equal -Waggregate-return -Wswitch-default
 else
 OPT_FLAGS := -O3 -DNDEBUG -flto=auto
 WARN_FLAGS += -Werror
