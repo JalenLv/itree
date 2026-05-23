@@ -4,11 +4,6 @@
 #include "helpers.h"
 #include <limits.h>
 
-typedef struct FileTreeNode FileTreeNode;
-typedef struct {
-    DA_FIELDS(FileTreeNode);
-} FileTree;
-
 typedef enum {
     FILE_NODE,
     DIRECTORY_NODE,
@@ -22,6 +17,12 @@ typedef struct FileTreeNode {
     int         depth;          // depth in the tree, root is 0
     char        target[256];    // target path if it's a link; NULL otherwise
 } FileTreeNode;
+
+typedef struct {
+    DA_FIELDS(FileTreeNode);
+} FileTree;
+
+DA_DEFINE(FileTree, FileTreeNode);
 
 /**
  * Creates a sorted file tree from the given path.

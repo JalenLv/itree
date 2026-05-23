@@ -5,60 +5,67 @@
 #include <stdlib.h>
 
 typedef struct { DA_FIELDS(int); } IntArray;
+DA_DEFINE(IntArray, int);
 typedef struct { DQ_FIELDS(int); } IntDeque;
 
 TEST da_push_pop_basic(void) {
     IntArray a = {0};
-    DA_PUSH(int, &a, 1);
-    DA_PUSH(int, &a, 2);
-    DA_PUSH(int, &a, 3);
-    ASSERT_EQ(3, a.count);
-    ASSERT_EQ(3, DA_GET(int, &a, 2));
-    ASSERT_EQ(3, DA_POP(int, &a));
-    ASSERT_EQ(2, a.count);
-    DA_FREE(int, &a);
+    IntArray_push(&a, &(int){1});
+    IntArray_push(&a, &(int){2});
+    IntArray_push(&a, &(int){3});
+    ASSERT_EQ(3, (int)a.count);
+    int got;
+    IntArray_get(&a, 2, &got);
+    ASSERT_EQ(3, got);
+    IntArray_pop(&a, &got);
+    ASSERT_EQ(3, got);
+    ASSERT_EQ(2, (int)a.count);
+    IntArray_free(&a);
     PASS();
 }
 
 TEST da_remove_keeps_order(void) {
     IntArray a = {0};
-    for (int i = 0; i < 5; ++i) DA_PUSH(int, &a, i);
-    DA_REMOVE(int, &a, 2);
-    ASSERT_EQ(4, a.count);
-    ASSERT_EQ(0, DA_GET(int, &a, 0));
-    ASSERT_EQ(1, DA_GET(int, &a, 1));
-    ASSERT_EQ(3, DA_GET(int, &a, 2));
-    ASSERT_EQ(4, DA_GET(int, &a, 3));
-    DA_FREE(int, &a);
+    for (int i = 0; i < 5; ++i) IntArray_push(&a, &i);
+    IntArray_remove(&a, 2);
+    ASSERT_EQ(4, (int)a.count);
+    int got;
+    IntArray_get(&a, 0, &got); ASSERT_EQ(0, got);
+    IntArray_get(&a, 1, &got); ASSERT_EQ(1, got);
+    IntArray_get(&a, 2, &got); ASSERT_EQ(3, got);
+    IntArray_get(&a, 3, &got); ASSERT_EQ(4, got);
+    IntArray_free(&a);
     PASS();
 }
 
 TEST da_remove_range_keeps_order(void) {
     IntArray a = {0};
-    for (int i = 0; i < 6; ++i) DA_PUSH(int, &a, i);
-    DA_REMOVE_RANGE(int, &a, 1, 4);
-    ASSERT_EQ(3, a.count);
-    ASSERT_EQ(0, DA_GET(int, &a, 0));
-    ASSERT_EQ(4, DA_GET(int, &a, 1));
-    ASSERT_EQ(5, DA_GET(int, &a, 2));
-    DA_FREE(int, &a);
+    for (int i = 0; i < 6; ++i) IntArray_push(&a, &i);
+    IntArray_remove_range(&a, 1, 4);
+    ASSERT_EQ(3, (int)a.count);
+    int got;
+    IntArray_get(&a, 0, &got); ASSERT_EQ(0, got);
+    IntArray_get(&a, 1, &got); ASSERT_EQ(4, got);
+    IntArray_get(&a, 2, &got); ASSERT_EQ(5, got);
+    IntArray_free(&a);
     PASS();
 }
 
 TEST da_insert_merges_two_arrays(void) {
     IntArray a = {0};
     IntArray b = {0};
-    for (int i = 0; i < 3; ++i) DA_PUSH(int, &a, i * 10);
-    for (int i = 0; i < 2; ++i) DA_PUSH(int, &b, 99 + i);
-    DA_INSERT(int, &a, 1, &b);
-    ASSERT_EQ(5, a.count);
-    ASSERT_EQ(0,  DA_GET(int, &a, 0));
-    ASSERT_EQ(99, DA_GET(int, &a, 1));
-    ASSERT_EQ(100,DA_GET(int, &a, 2));
-    ASSERT_EQ(10, DA_GET(int, &a, 3));
-    ASSERT_EQ(20, DA_GET(int, &a, 4));
-    DA_FREE(int, &a);
-    DA_FREE(int, &b);
+    for (int i = 0; i < 3; ++i) { int v = i * 10; IntArray_push(&a, &v); }
+    for (int i = 0; i < 2; ++i) { int v = 99 + i; IntArray_push(&b, &v); }
+    IntArray_insert(&a, &b, 1);
+    ASSERT_EQ(5, (int)a.count);
+    int got;
+    IntArray_get(&a, 0, &got); ASSERT_EQ(0,   got);
+    IntArray_get(&a, 1, &got); ASSERT_EQ(99,  got);
+    IntArray_get(&a, 2, &got); ASSERT_EQ(100, got);
+    IntArray_get(&a, 3, &got); ASSERT_EQ(10,  got);
+    IntArray_get(&a, 4, &got); ASSERT_EQ(20,  got);
+    IntArray_free(&a);
+    IntArray_free(&b);
     PASS();
 }
 
@@ -70,22 +77,30 @@ static int int_cmp(const void *a, const void *b) {
 TEST da_sort_full(void) {
     IntArray a = {0};
     int input[] = {3, 1, 4, 1, 5, 9, 2, 6};
-    for (size_t i = 0; i < sizeof(input)/sizeof(input[0]); ++i) DA_PUSH(int, &a, input[i]);
-    DA_SORT(int, &a, int_cmp);
+    for (size_t i = 0; i < sizeof(input)/sizeof(input[0]); ++i) IntArray_push(&a, &input[i]);
+    IntArray_sort(&a, int_cmp);
     int expected[] = {1, 1, 2, 3, 4, 5, 6, 9};
-    for (int i = 0; i < a.count; ++i) ASSERT_EQ(expected[i], DA_GET(int, &a, i));
-    DA_FREE(int, &a);
+    for (size_t i = 0; i < a.count; ++i) {
+        int got;
+        IntArray_get(&a, i, &got);
+        ASSERT_EQ(expected[i], got);
+    }
+    IntArray_free(&a);
     PASS();
 }
 
 TEST da_sort_range_only_sorts_subrange(void) {
     IntArray a = {0};
     int input[] = {9, 5, 3, 1, 7};
-    for (size_t i = 0; i < sizeof(input)/sizeof(input[0]); ++i) DA_PUSH(int, &a, input[i]);
-    DA_SORT_RANGE(int, &a, 1, 4, int_cmp);
+    for (size_t i = 0; i < sizeof(input)/sizeof(input[0]); ++i) IntArray_push(&a, &input[i]);
+    IntArray_sort_range(&a, 1, 4, int_cmp);
     int expected[] = {9, 1, 3, 5, 7};
-    for (int i = 0; i < a.count; ++i) ASSERT_EQ(expected[i], DA_GET(int, &a, i));
-    DA_FREE(int, &a);
+    for (size_t i = 0; i < a.count; ++i) {
+        int got;
+        IntArray_get(&a, i, &got);
+        ASSERT_EQ(expected[i], got);
+    }
+    IntArray_free(&a);
     PASS();
 }
 

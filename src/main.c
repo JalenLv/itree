@@ -30,34 +30,36 @@ int main(int argc, char *argv[]) {
     FileTree file_tree = {0};
     if (create_file_tree_from_path(&file_tree, &args)) {
         fprintf(stderr, "Error: Failed to create file tree from path: %s\n", args.path);
-        return 1;
+        goto clear;
     }
 
     // Run TUI
     if (!args.no_tui && run_tui(&file_tree) != 0) {
         fprintf(stderr, "Error: Failed in TUI.\n");
-        DA_FREE(FileTree, &file_tree);
-        return 1;
+        goto clear;
     }
 
     // Open output file
     FILE *output = NULL;
     if (open_io(&args, &output) != 0) {
         fprintf(stderr, "Error: Failed to open output file.\n");
-        DA_FREE(FileTree, &file_tree);
-        return 1;
+        goto clear;
     }
 
     // Draw tree
     if (draw_tree(&file_tree, output) != 0) {
         fprintf(stderr, "Error: Failed to draw file tree.\n");
-        close_io(output);
-        DA_FREE(FileTree, &file_tree);
-        return 1;
+        goto clear;
     }
 
     // Clean up
     close_io(output);
-    DA_FREE(FileTree, &file_tree);
+    FileTree_free(&file_tree);
     return 0;
+
+    // Clean up if error occurs
+clear:
+    if (output) close_io(output);
+    FileTree_free(&file_tree);
+    return 1;
 }

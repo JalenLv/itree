@@ -86,13 +86,14 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_
             }
         }
 
-        DA_PUSH(FileTreeNode, &tmp_tree, node);
+        FileTree_push(&tmp_tree, &node);
     }
-    DA_SORT(FileTreeNode, &tmp_tree, entry_cmp);
-    DA_INSERT(FileTreeNode, file_tree, offset, &tmp_tree);
+    FileTree_sort(&tmp_tree, entry_cmp);
+    FileTree_insert(file_tree, &tmp_tree, offset);
 
     for (int i = tmp_tree.count - 1; i >= 0; i--) {
-        FileTreeNode *node = DA_GET_PTR(FileTreeNode *, &tmp_tree, i);
+        FileTreeNode *node;
+        FileTree_get_ptr(&tmp_tree, i, &node);
         if (node->type == DIRECTORY_NODE) {
             char child_path[4096];
             if (strlen(path) + strlen(node->name) + 1 >= sizeof(child_path)) {
@@ -108,7 +109,7 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_
 
 CLEANUP:
     closedir(d);
-    DA_FREE(FileTreeNode, &tmp_tree);
+    FileTree_free(&tmp_tree);
     return ret;
 }
 
@@ -139,11 +140,11 @@ int create_file_tree_from_path(FileTree *file_tree, const Args *args) {
     root.collapsed = 0;
     root.depth = 0;
     root.target[0] = '\0';
-    DA_PUSH(FileTreeNode, file_tree, root);
+    FileTree_push(file_tree, &root);
 
     // Iterate over directory entries
     if (walk(file_tree, path, 1, 1, args->show_hidden) != 0) {
-        DA_FREE(FileTreeNode, file_tree);
+        FileTree_free(file_tree);
         return 1;
     }
 
@@ -154,8 +155,8 @@ int next(FileTree *file_tree, int idx) {
     if (idx == FILE_TREE_SENTINEL_HEAD) return 0;
     if (idx == FILE_TREE_SENTINEL_TAIL) return FILE_TREE_SENTINEL_TAIL;
 
-    FileTreeNode *node = DA_GET_PTR(FileTreeNode *, file_tree, idx);
-    if (node == NULL) {
+    FileTreeNode *node;
+    if (FileTree_get_ptr(file_tree, idx, &node) != 0) {
         return -1;
     }
 
@@ -172,7 +173,8 @@ int next(FileTree *file_tree, int idx) {
     // If the node is a directory and collapsed, skip its children
     int depth = node->depth;
     for (int i = idx + 1; i < file_tree->count; i++) {
-        FileTreeNode *next_node = DA_GET_PTR(FileTreeNode *, file_tree, i);
+        FileTreeNode *next_node;
+        FileTree_get_ptr(file_tree, i, &next_node);
         if (next_node->depth <= depth) {
             return i;
         }
@@ -193,14 +195,16 @@ int prev(FileTree *file_tree, int idx) {
         return i;
     }
 
-    FileTreeNode *node = DA_GET_PTR(FileTreeNode *, file_tree, idx);
-    if (node == NULL) {
+    FileTreeNode *node;
+    if (FileTree_get_ptr(file_tree, idx, &node) != 0) {
         return -1;
     }
 
     int depth = node->depth;
     int candidate = idx - 1;
-    int candidate_depth = DA_GET(FileTreeNode, file_tree, candidate).depth;
+    FileTreeNode *candidate_node;
+    FileTree_get_ptr(file_tree, candidate, &candidate_node);
+    int candidate_depth = candidate_node->depth;
     if (candidate_depth <= depth) {
         // If the previous node is at the same or shallower depth, return it
         return candidate;
@@ -208,8 +212,10 @@ int prev(FileTree *file_tree, int idx) {
         // Otherwise, find its ancestors and infer from their state
         int cur_depth = candidate_depth;
         for (int i = candidate; i >= 0; i--) {
-            if (DA_GET(FileTreeNode, file_tree, i).depth == cur_depth - 1) {
-                if (DA_GET(FileTreeNode, file_tree, i).collapsed) {
+            FileTreeNode *node_i;
+            FileTree_get_ptr(file_tree, i, &node_i);
+            if (node_i->depth == cur_depth - 1) {
+                if (node_i->collapsed) {
                     candidate = i;
                 }
                 if (--cur_depth == depth) {

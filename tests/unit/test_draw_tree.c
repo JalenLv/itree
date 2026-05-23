@@ -38,13 +38,13 @@ static int draw_and_diff(const char *fixture_path, int show_hidden, const char *
     char buf[8192] = {0};
     FILE *out = fmemopen(buf, sizeof(buf), "w");
     if (!out) {
-        DA_FREE(FileTreeNode, &tree);
+        FileTree_free(&tree);
         snprintf(errbuf, errbuf_sz, "fmemopen failed");
         return 1;
     }
     int rc = draw_tree(&tree, out);
     fclose(out);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     if (rc != 0) {
         snprintf(errbuf, errbuf_sz, "draw_tree returned %d", rc);
         return 1;
@@ -123,7 +123,7 @@ TEST collapsed_directory_hides_its_children(void) {
     ASSERT(strstr(buf, "buried_a")   == NULL);
     ASSERT(strstr(buf, "buried_b")   == NULL);
 
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 

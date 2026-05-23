@@ -43,7 +43,7 @@ TEST init_app_state_with_window_smaller_than_tree(void) {
     /* tail is the next of 4th visible entry */
     ASSERT_EQ(4, s.visible_entries_tail);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -57,7 +57,7 @@ TEST init_app_state_with_window_larger_than_tree(void) {
     /* tail should be the next of the last node, which is the sentinel tail */
     ASSERT_EQ(FILE_TREE_SENTINEL_TAIL, s.visible_entries_tail);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -72,7 +72,7 @@ TEST q_returns_one(void) {
     init_app_state(&s, &tree, 10);
     ASSERT_EQ(1, handle_key(&s, 'q'));
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -86,7 +86,7 @@ TEST j_moves_selection_down(void) {
     ASSERT_EQ(0, handle_key(&s, 'j'));
     ASSERT_EQ(2, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -98,7 +98,7 @@ TEST key_down_arrow_same_as_j(void) {
     ASSERT_EQ(0, handle_key(&s, KEY_DOWN));
     ASSERT_EQ(1, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -120,7 +120,7 @@ TEST j_at_window_bottom_slides_window(void) {
     ASSERT_EQ(5, s.visible_entries_tail);
     ASSERT_EQ(4, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -135,7 +135,7 @@ TEST j_at_tree_end_wraps_to_top(void) {
     handle_key(&s, 'j');
     ASSERT_EQ(0, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -150,7 +150,7 @@ TEST k_moves_selection_up(void) {
     ASSERT_EQ(0, handle_key(&s, 'k'));
     ASSERT_EQ(1, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -164,7 +164,7 @@ TEST key_up_arrow_same_as_k(void) {
     handle_key(&s, KEY_UP);
     ASSERT_EQ(0, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -186,7 +186,7 @@ TEST h_on_directory_collapses(void) {
     handle_key(&s, 'h');
     ASSERT_EQ(1, tree.items[1].collapsed);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -202,7 +202,7 @@ TEST l_on_collapsed_directory_expands(void) {
     handle_key(&s, 'l');
     ASSERT_EQ(0, tree.items[1].collapsed);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -217,7 +217,7 @@ TEST h_on_file_is_noop(void) {
     ASSERT_EQ(prev_sel, s.selected_entry);
     ASSERT_EQ(0, tree.items[1].collapsed);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -237,7 +237,7 @@ TEST g_resets_to_top(void) {
     ASSERT_EQ(0, s.visible_entries_head);
     ASSERT_EQ(0, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -250,7 +250,7 @@ TEST G_jumps_to_bottom(void) {
     ASSERT_EQ(7, s.selected_entry);
     ASSERT_EQ(FILE_TREE_SENTINEL_TAIL, s.visible_entries_tail);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -268,7 +268,7 @@ TEST ctrl_d_moves_half_page_down(void) {
     ASSERT_EQ(9, s.visible_entries_tail);
     ASSERT_EQ(3, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -294,7 +294,7 @@ TEST ctrl_u_moves_half_page_up(void) {
     ASSERT_EQ(7, s.visible_entries_tail);
     ASSERT_EQ(3, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
@@ -315,7 +315,7 @@ TEST resize_recomputes_tail(void) {
     ASSERT_EQ(8, s.visible_entries_tail);
     ASSERT_EQ(0, s.selected_entry);
     delwin(s.tree_pad);
-    DA_FREE(FileTreeNode, &tree);
+    FileTree_free(&tree);
     PASS();
 }
 
