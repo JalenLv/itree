@@ -93,7 +93,9 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_
 
     for (int i = tmp_tree.count - 1; i >= 0; i--) {
         FileTreeNode *node;
-        FileTree_get_ptr(&tmp_tree, i, &node);
+        if (FileTree_get_ptr(&tmp_tree, i, &node) != 0) {
+            ret = 1; goto CLEANUP;
+        }
         if (node->type == DIRECTORY_NODE) {
             char child_path[4096];
             if (strlen(path) + strlen(node->name) + 1 >= sizeof(child_path)) {
@@ -174,7 +176,9 @@ int next(FileTree *file_tree, int idx) {
     int depth = node->depth;
     for (int i = idx + 1; i < file_tree->count; i++) {
         FileTreeNode *next_node;
-        FileTree_get_ptr(file_tree, i, &next_node);
+        if (FileTree_get_ptr(file_tree, i, &next_node) != 0) {
+            return -1;
+        }
         if (next_node->depth <= depth) {
             return i;
         }
@@ -203,7 +207,9 @@ int prev(FileTree *file_tree, int idx) {
     int depth = node->depth;
     int candidate = idx - 1;
     FileTreeNode *candidate_node;
-    FileTree_get_ptr(file_tree, candidate, &candidate_node);
+    if (FileTree_get_ptr(file_tree, candidate, &candidate_node) != 0) {
+        return -1;
+    }
     int candidate_depth = candidate_node->depth;
     if (candidate_depth <= depth) {
         // If the previous node is at the same or shallower depth, return it
@@ -213,7 +219,9 @@ int prev(FileTree *file_tree, int idx) {
         int cur_depth = candidate_depth;
         for (int i = candidate; i >= 0; i--) {
             FileTreeNode *node_i;
-            FileTree_get_ptr(file_tree, i, &node_i);
+            if (FileTree_get_ptr(file_tree, i, &node_i) != 0) {
+                return -1;
+            }
             if (node_i->depth == cur_depth - 1) {
                 if (node_i->collapsed) {
                     candidate = i;

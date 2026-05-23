@@ -26,8 +26,9 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Create file tree
+    FILE *output = NULL;
     FileTree file_tree = {0};
+    // Create file tree
     if (create_file_tree_from_path(&file_tree, &args)) {
         fprintf(stderr, "Error: Failed to create file tree from path: %s\n", args.path);
         goto clear;
@@ -40,7 +41,6 @@ int main(int argc, char *argv[]) {
     }
 
     // Open output file
-    FILE *output = NULL;
     if (open_io(&args, &output) != 0) {
         fprintf(stderr, "Error: Failed to open output file.\n");
         goto clear;

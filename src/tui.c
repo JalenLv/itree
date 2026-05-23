@@ -91,7 +91,9 @@ int draw_visible_entries(AppState *app_state) {
     for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         // Do the drawing
         FileTreeNode *node;
-        FileTree_get_ptr(app_state->all_entries, i, &node);
+        if (FileTree_get_ptr(app_state->all_entries, i, &node) != 0) {
+            return 1;
+        }
         // Leave 2 spaces on the left for the selected entry arrow
         mvwprintw(app_state->tree_pad, row, 0, "  ");
         // Indentation based on depth
@@ -241,7 +243,10 @@ void update_tree_pad(AppState *app_state) {
     int max_len = 0;
     for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         FileTreeNode *node;
-        FileTree_get_ptr(app_state->all_entries, i, &node);
+        if (FileTree_get_ptr(app_state->all_entries, i, &node) != 0) {
+            // TODO: make update_tree_pad return int so this error can propagate instead of being swallowed by continue
+            continue;
+        }
         int len = entry_display_width(node);
         if (len > max_len) max_len = len;
     }
@@ -336,7 +341,9 @@ int handle_key(AppState *app_state, int ch) {
         }
         case 'h': { // Collapse directory
             FileTreeNode *current_node;
-            FileTree_get_ptr(app_state->all_entries, app_state->selected_entry, &current_node);
+            if (FileTree_get_ptr(app_state->all_entries, app_state->selected_entry, &current_node) != 0) {
+                return 1;
+            }
             if (current_node->type == DIRECTORY_NODE && !current_node->collapsed) {
                 current_node->collapsed = 1;
                 update_tail_given_head(app_state);
@@ -350,7 +357,9 @@ int handle_key(AppState *app_state, int ch) {
         }
         case 'l': { // Expand directory
             FileTreeNode *current_node;
-            FileTree_get_ptr(app_state->all_entries, app_state->selected_entry, &current_node);
+            if (FileTree_get_ptr(app_state->all_entries, app_state->selected_entry, &current_node) != 0) {
+                return 1;
+            }
             if (current_node->type == DIRECTORY_NODE && current_node->collapsed) {
                 current_node->collapsed = 0;
                 update_tail_given_head(app_state);
@@ -492,7 +501,9 @@ static int mouse_left_click(AppState *app_state, MEVENT *event) {
     if (i == app_state->visible_entries_tail) return 0;
 
     FileTreeNode *clicked_node;
-    FileTree_get_ptr(app_state->all_entries, i, &clicked_node);
+    if (FileTree_get_ptr(app_state->all_entries, i, &clicked_node) != 0) {
+        return 1;
+    }
     int pos_arrow = 2 + clicked_node->depth * 4 + 2 - app_state->col_offset;
     int pos_begin_name = 2 + clicked_node->depth * 4 + 4 - app_state->col_offset;
     int pos_end_name = entry_display_width(clicked_node) - app_state->col_offset;
@@ -528,7 +539,9 @@ static int mouse_left_double_click(AppState *app_state, MEVENT *event) {
     if (i == app_state->visible_entries_tail) return 0;
 
     FileTreeNode *clicked_node;
-    FileTree_get_ptr(app_state->all_entries, i, &clicked_node);
+    if (FileTree_get_ptr(app_state->all_entries, i, &clicked_node) != 0) {
+        return 1;
+    }
     int pos_begin_name = 2 + clicked_node->depth * 4 + 4 - app_state->col_offset;
     int pos_end_name = entry_display_width(clicked_node) - app_state->col_offset;
     if (click_col >= pos_begin_name && click_col < pos_end_name) {
