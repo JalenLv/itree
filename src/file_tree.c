@@ -36,9 +36,9 @@ static int walk(FileTree *file_tree, const char *path, int depth, size_t offset,
 
         int is_hidden = (ent->d_name[0] == '.');
         if (!show_hidden && is_hidden) continue;
-        int is_reg    = 0;
-        int is_dir    = 0;
-        int is_syml   = 0;
+        int is_reg  = 0;
+        int is_dir  = 0;
+        int is_syml = 0;
         switch (ent->d_type) {
             case DT_REG: { is_reg  = 1; break; }
             case DT_DIR: { is_dir  = 1; break; }
