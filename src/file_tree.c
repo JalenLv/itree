@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <libgen.h>
 
-int entry_cmp(const void *a, const void *b) {
+static int entry_cmp(const void *a, const void *b) {
     const FileTreeNode *node_a = (const FileTreeNode *)a;
     const FileTreeNode *node_b = (const FileTreeNode *)b;
 
@@ -14,7 +14,7 @@ int entry_cmp(const void *a, const void *b) {
     );
 }
 
-int walk(FileTree *file_tree, const char *path, int depth, size_t offset, int show_hidden) {
+static int walk(FileTree *file_tree, const char *path, int depth, size_t offset, int show_hidden) {
     DIR *d = opendir(path);
     if (d == NULL) {
         perror("opendir");
