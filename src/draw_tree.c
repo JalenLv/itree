@@ -13,7 +13,7 @@
 
 int draw_tree(FileTree *file_tree, FILE *output) {
 	int max_depth = 0;
-	for (int i = 0; i < file_tree->count; ++i) {
+	for (size_t i = 0; i < file_tree->count; ++i) {
 		if (file_tree->items[i].depth > max_depth) {
 			max_depth = file_tree->items[i].depth;
 		}
@@ -28,7 +28,7 @@ int draw_tree(FileTree *file_tree, FILE *output) {
 
 	int collapsed_depth = -1;
 
-	for (int i = 0; i < file_tree->count; ++i) {
+	for (size_t i = 0; i < file_tree->count; ++i) {
 		FileTreeNode *node = &file_tree->items[i];
 		int depth = node->depth;
 
@@ -41,7 +41,7 @@ int draw_tree(FileTree *file_tree, FILE *output) {
 		}
 
 		int is_last = 1;
-		for (int j = i + 1; j < file_tree->count; ++j) {
+		for (size_t j = i + 1; j < file_tree->count; ++j) {
 			int next_depth = file_tree->items[j].depth;
 			if (next_depth < depth) {
 				break;

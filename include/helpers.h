@@ -11,83 +11,158 @@ char *concat_NULL(const char *str1, ...);
 /**
  * Dynamic array macros.
  */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// Define the fields of a dynamic array for a given type
-// Usage: typedef struct { DA_FIELDS(int); } IntArray;
-#define DA_FIELDS(T) 		\
-	int count; 				\
-	int capacity; 			\
-	T *items
+#define DA_FIELDS(T)                                                           \
+    size_t count;                                                              \
+    size_t capacity;                                                           \
+    T *items;                                                                  \
+    _Static_assert(1, "DA_FIELDS requires trailing semicolon")
 
-// Free the dynamic array
-// Use this only when the elements do not need to be freed individually
-#define DA_FREE(T, arr) do { 		\
-	if ((arr)->items != NULL) { 	\
-		free((arr)->items); 		\
-		(arr)->items = NULL;		\
-		(arr)->count = 0; 			\
-		(arr)->capacity = 0; 		\
-	} 								\
-} while (0)
-
-// Push an item to the dynamic array
-#define DA_PUSH(T, arr, item) do { 													\
-	if ((arr)->count == (arr)->capacity) { 											\
-		(arr)->capacity = (arr)->capacity ? (arr)->capacity * 2 : 8; 				\
-		(arr)->items = (T *)realloc((arr)->items, (arr)->capacity * sizeof(T));		\
-	} 																				\
-	(arr)->items[(arr)->count++] = item; 											\
-} while (0)
-
-// Pop an item from the dynamic array
-#define DA_POP(T, arr) ((arr)->count > 0 ? (T)(arr)->items[--(arr)->count] : (T){0})
-
-// Get an item from the dynamic array by index
-#define DA_GET(T, arr, index) (((index) < (arr)->count && (index) >= 0) ? (T)(arr)->items[index] : (T){0})
-
-// Get a pointer to an item from the dynamic array by index
-#define DA_GET_PTR(T, arr, index) (((index) < (arr)->count && (index) >= 0) ? (T)&((arr)->items[index]) : NULL)
-
-// Remove an item from the dynamic array by index
-#define DA_REMOVE(T, arr, index) do { 																			\
-	if ((index) < (arr)->count && (index) >= 0) { 																\
-		memmove(&(arr)->items[index], &(arr)->items[index + 1], ((arr)->count - (index) - 1) * sizeof(T));		\
-		(arr)->count--; 																						\
-	} 																											\
-} while (0)
-
-// Remove a range of items from the dynamic array [start, end)
-#define DA_REMOVE_RANGE(T, arr, start, end) do { 													\
-	if ((start) >= 0 && (end) <= (arr)->count && (start) < (end)) { 								\
-		memmove(&(arr)->items[start], &(arr)->items[end], ((arr)->count - (end)) * sizeof(T));		\
-		(arr)->count -= ((end) - (start)); 															\
-	} 																								\
-} while (0)
-
-// Insert a DA `arr2insert` into another DA `arr` at a given index
-#define DA_INSERT(T, arr, index, arr2insert) do { 																				\
-	if ((arr2insert)->count > 0 && (index) >= 0 && (index) <= (arr)->count) { 													\
-		while ((arr)->count + (arr2insert)->count > (arr)->capacity) { 															\
-			(arr)->capacity = (arr)->capacity ? (arr)->capacity * 2 : 8; 														\
-			(arr)->items = (T *)realloc((arr)->items, (arr)->capacity * sizeof(T)); 											\
-		} 																														\
-		memmove(&(arr)->items[(index) + (arr2insert)->count], &(arr)->items[index], ((arr)->count - (index)) * sizeof(T));		\
-		memcpy(&(arr)->items[index], (arr2insert)->items, (arr2insert)->count * sizeof(T)); 									\
-		(arr)->count += (arr2insert)->count; 																					\
-	} 																															\
-} while (0)
-
-// Sort a range of items in the dynamic array
-#define DA_SORT_RANGE(T, arr, start, end, cmp) do { 								\
-	if ((start) >= 0 && (end) <= (arr)->count && (start) < (end)) { 				\
-		qsort(&(arr)->items[start], (size_t)((end) - (start)), sizeof(T), cmp);		\
-	} 																				\
-} while (0)
-
-// Sort the entire dynamic array
-#define DA_SORT(T, arr, cmp) DA_SORT_RANGE(T, arr, 0, (arr)->count, cmp)
+#define DA_DEFINE(ContainerT, T)                                               \
+    static inline void ContainerT##_free(ContainerT *arr) {                    \
+        if (arr && arr->items) {                                               \
+            free(arr->items);                                                  \
+            arr->items = NULL;                                                 \
+            arr->count = 0;                                                    \
+            arr->capacity = 0;                                                 \
+        }                                                                      \
+    }                                                                          \
+    static inline int ContainerT##_resize(ContainerT *arr) {                   \
+        if (!arr) {                                                            \
+            fprintf(stderr, "Invalid array pointer\n");                        \
+            return -1;                                                         \
+        }                                                                      \
+        size_t new_capacity = arr->capacity ? arr->capacity * 2 : 8;           \
+        T *new_items = (T *)realloc(arr->items, new_capacity * sizeof(T));     \
+        if (new_items) {                                                       \
+            arr->items = new_items;                                            \
+            arr->capacity = new_capacity;                                      \
+            return 0;                                                          \
+        } else {                                                               \
+            perror("Failed to resize array");                                  \
+            return -1;                                                         \
+        }                                                                      \
+    }                                                                          \
+    static inline int ContainerT##_push(ContainerT *arr, const T *item) {      \
+        if (!arr || !item) {                                                   \
+            fprintf(stderr, "Invalid pointer\n");                              \
+            return -1;                                                         \
+        }                                                                      \
+        if (arr->count == arr->capacity && ContainerT##_resize(arr) != 0)      \
+            return -1;                                                         \
+        arr->items[arr->count++] = *item;                                      \
+        return 0;                                                              \
+    }                                                                          \
+    static inline int ContainerT##_empty(const ContainerT *arr) {              \
+        if (!arr) {                                                            \
+            fprintf(stderr, "Invalid array pointer\n");                        \
+            return -1;                                                         \
+        }                                                                      \
+        return arr->count == 0;                                                \
+    }                                                                          \
+    static inline int ContainerT##_pop(ContainerT *arr, T *out) {              \
+        if (!arr || !out) {                                                    \
+            fprintf(stderr, "Invalid pointer\n");                              \
+            return -1;                                                         \
+        }                                                                      \
+        if (ContainerT##_empty(arr)) {                                         \
+            fprintf(stderr, "Pop from empty array\n");                         \
+            return -1;                                                         \
+        }                                                                      \
+        *out = arr->items[--arr->count];                                       \
+        return 0;                                                              \
+    }                                                                          \
+    static inline int ContainerT##_get(const ContainerT *arr, size_t index,    \
+                                       T *out) {                               \
+        if (!arr || !out) {                                                    \
+            fprintf(stderr, "Invalid pointer\n");                              \
+            return -1;                                                         \
+        }                                                                      \
+        if (index >= arr->count) {                                             \
+            fprintf(stderr, "Index out of bounds\n");                          \
+            return -1;                                                         \
+        }                                                                      \
+        *out = arr->items[index];                                              \
+        return 0;                                                              \
+    }                                                                          \
+    static inline int ContainerT##_get_ptr(const ContainerT *arr,              \
+                                           size_t index, T **out) {            \
+        if (!arr || !out) {                                                    \
+            fprintf(stderr, "Invalid pointer\n");                              \
+            return -1;                                                         \
+        }                                                                      \
+        if (index >= arr->count) {                                             \
+            fprintf(stderr, "Index out of bounds\n");                          \
+            return -1;                                                         \
+        }                                                                      \
+        *out = &arr->items[index];                                             \
+        return 0;                                                              \
+    }                                                                          \
+    static inline int ContainerT##_remove_range(ContainerT *arr, size_t begin, \
+                                                size_t end) {                  \
+        if (!arr) {                                                            \
+            fprintf(stderr, "Invalid array pointer\n");                        \
+            return -1;                                                         \
+        }                                                                      \
+        if (begin >= arr->count || end > arr->count || begin >= end) {         \
+            fprintf(stderr, "Invalid range\n");                                \
+            return -1;                                                         \
+        }                                                                      \
+        memmove(&arr->items[begin], &arr->items[end],                          \
+                (arr->count - end) * sizeof(T));                               \
+        arr->count -= (end - begin);                                           \
+        return 0;                                                              \
+    }                                                                          \
+    static inline int ContainerT##_remove(ContainerT *arr, size_t index) {     \
+        return ContainerT##_remove_range(arr, index, index + 1);               \
+    }                                                                          \
+    static inline int ContainerT##_insert(                                     \
+        ContainerT *arr, const ContainerT *other, size_t index) {              \
+        if (!arr || !other) {                                                  \
+            fprintf(stderr, "Invalid pointer\n");                              \
+            return -1;                                                         \
+        }                                                                      \
+        if (index > arr->count) {                                              \
+            fprintf(stderr, "Index out of bounds\n");                          \
+            return -1;                                                         \
+        }                                                                      \
+        while (arr->count + other->count > arr->capacity) {                    \
+            if (ContainerT##_resize(arr) != 0)                                 \
+                return -1;                                                     \
+        }                                                                      \
+        memmove(&arr->items[index + other->count], &arr->items[index],         \
+                (arr->count - index) * sizeof(T));                             \
+        memcpy(&arr->items[index], other->items, other->count * sizeof(T));    \
+        arr->count += other->count;                                            \
+        return 0;                                                              \
+    }                                                                          \
+    typedef int (*ContainerT##_cmp_fn_t)(const void *, const void *);          \
+    static inline int ContainerT##_sort_range(ContainerT *arr, size_t begin,   \
+                                              size_t end,                      \
+                                              ContainerT##_cmp_fn_t cmp) {     \
+        if (!arr || !cmp) {                                                    \
+            fprintf(stderr, "Invalid pointer\n");                              \
+            return -1;                                                         \
+        }                                                                      \
+        if (begin >= arr->count || end > arr->count || begin >= end) {         \
+            fprintf(stderr, "Invalid range\n");                                \
+            return -1;                                                         \
+        }                                                                      \
+        qsort(&arr->items[begin], end - begin, sizeof(T), cmp);                \
+        return 0;                                                              \
+    }                                                                          \
+    static inline int ContainerT##_sort(ContainerT *arr,                       \
+                                        ContainerT##_cmp_fn_t cmp) {           \
+        if (!arr) {                                                            \
+            fprintf(stderr, "Invalid array pointer\n");                        \
+            return -1;                                                         \
+        }                                                                      \
+        return ContainerT##_sort_range(arr, 0, arr->count, cmp);               \
+    }                                                                          \
+    _Static_assert(1, "DA_DEFINE requires trailing semicolon")
 
 /**
  * Dynamic deque macros.

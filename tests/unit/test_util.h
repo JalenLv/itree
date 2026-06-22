@@ -18,7 +18,7 @@ static inline void synth_push(FileTree *tree, NodeType type, const char *name,
     if (target) {
         snprintf(node.target, sizeof(node.target), "%s", target);
     }
-    DA_PUSH(FileTreeNode, tree, node);
+    FileTree_push(tree, &node);
 }
 
 #endif // TEST_UTIL_H

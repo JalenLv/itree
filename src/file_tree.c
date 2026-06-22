@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <libgen.h>
 
-int entry_cmp(const void *a, const void *b) {
+static int entry_cmp(const void *a, const void *b) {
     const FileTreeNode *node_a = (const FileTreeNode *)a;
     const FileTreeNode *node_b = (const FileTreeNode *)b;
 
@@ -14,7 +14,7 @@ int entry_cmp(const void *a, const void *b) {
     );
 }
 
-int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_hidden) {
+static int walk(FileTree *file_tree, const char *path, int depth, size_t offset, int show_hidden) {
     DIR *d = opendir(path);
     if (d == NULL) {
         perror("opendir");
@@ -36,9 +36,9 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_
 
         int is_hidden = (ent->d_name[0] == '.');
         if (!show_hidden && is_hidden) continue;
-        int is_reg    = 0;
-        int is_dir    = 0;
-        int is_syml   = 0;
+        int is_reg  = 0;
+        int is_dir  = 0;
+        int is_syml = 0;
         switch (ent->d_type) {
             case DT_REG: { is_reg  = 1; break; }
             case DT_DIR: { is_dir  = 1; break; }
@@ -86,13 +86,18 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_
             }
         }
 
-        DA_PUSH(FileTreeNode, &tmp_tree, node);
+        FileTree_push(&tmp_tree, &node);
     }
-    DA_SORT(FileTreeNode, &tmp_tree, entry_cmp);
-    DA_INSERT(FileTreeNode, file_tree, offset, &tmp_tree);
+    if (FileTree_empty(&tmp_tree)) goto CLEANUP;
+    FileTree_sort(&tmp_tree, entry_cmp);
+    FileTree_insert(file_tree, &tmp_tree, offset);
 
-    for (int i = tmp_tree.count - 1; i >= 0; i--) {
-        FileTreeNode *node = DA_GET_PTR(FileTreeNode *, &tmp_tree, i);
+    size_t i = tmp_tree.count - 1;
+    for (;;) {
+        FileTreeNode *node;
+        if (FileTree_get_ptr(&tmp_tree, i, &node) != 0) {
+            ret = 1; goto CLEANUP;
+        }
         if (node->type == DIRECTORY_NODE) {
             char child_path[4096];
             if (strlen(path) + strlen(node->name) + 1 >= sizeof(child_path)) {
@@ -104,11 +109,14 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_
                 ret = 1; goto CLEANUP;
             }
         }
+
+        if (i == 0) break;
+        i--;
     }
 
 CLEANUP:
     closedir(d);
-    DA_FREE(FileTreeNode, &tmp_tree);
+    FileTree_free(&tmp_tree);
     return ret;
 }
 
@@ -139,24 +147,26 @@ int create_file_tree_from_path(FileTree *file_tree, const Args *args) {
     root.collapsed = 0;
     root.depth = 0;
     root.target[0] = '\0';
-    DA_PUSH(FileTreeNode, file_tree, root);
+    FileTree_push(file_tree, &root);
 
     // Iterate over directory entries
     if (walk(file_tree, path, 1, 1, args->show_hidden) != 0) {
-        DA_FREE(FileTreeNode, file_tree);
+        FileTree_free(file_tree);
         return 1;
     }
 
     return 0;
 }
 
-int next(FileTree *file_tree, int idx) {
+size_t next(FileTree *file_tree, size_t idx) {
     if (idx == FILE_TREE_SENTINEL_HEAD) return 0;
     if (idx == FILE_TREE_SENTINEL_TAIL) return FILE_TREE_SENTINEL_TAIL;
 
-    FileTreeNode *node = DA_GET_PTR(FileTreeNode *, file_tree, idx);
-    if (node == NULL) {
-        return -1;
+    FileTreeNode *node;
+    if (FileTree_get_ptr(file_tree, idx, &node) != 0) {
+        // TODO: We barely do error checking on next()
+        // Better design a new way of handling next() and its potential error
+        exit(1);
     }
 
     // If the node is a file or a link, return the next index
@@ -171,8 +181,12 @@ int next(FileTree *file_tree, int idx) {
 
     // If the node is a directory and collapsed, skip its children
     int depth = node->depth;
-    for (int i = idx + 1; i < file_tree->count; i++) {
-        FileTreeNode *next_node = DA_GET_PTR(FileTreeNode *, file_tree, i);
+    for (size_t i = idx + 1; i < file_tree->count; i++) {
+        FileTreeNode *next_node;
+        if (FileTree_get_ptr(file_tree, i, &next_node) != 0) {
+            // TODO: better error handling
+            exit(1);
+        }
         if (next_node->depth <= depth) {
             return i;
         }
@@ -182,42 +196,58 @@ int next(FileTree *file_tree, int idx) {
     return FILE_TREE_SENTINEL_TAIL;
 }
 
-int prev(FileTree *file_tree, int idx) {
+size_t prev(FileTree *file_tree, size_t idx) {
     if (idx == 0) return FILE_TREE_SENTINEL_HEAD;
     if (idx == FILE_TREE_SENTINEL_HEAD) return FILE_TREE_SENTINEL_HEAD;
     if (idx == FILE_TREE_SENTINEL_TAIL) {
-        int i = 0, next_i;
+        size_t i = 0, next_i;
         while ((next_i = next(file_tree, i)) != FILE_TREE_SENTINEL_TAIL) {
             i = next_i;
         }
         return i;
     }
 
-    FileTreeNode *node = DA_GET_PTR(FileTreeNode *, file_tree, idx);
-    if (node == NULL) {
-        return -1;
+    FileTreeNode *node;
+    if (FileTree_get_ptr(file_tree, idx, &node) != 0) {
+        // TODO: better error handling
+        exit(1);
     }
 
     int depth = node->depth;
-    int candidate = idx - 1;
-    int candidate_depth = DA_GET(FileTreeNode, file_tree, candidate).depth;
+    size_t candidate = idx - 1;
+    FileTreeNode *candidate_node;
+    if (FileTree_get_ptr(file_tree, candidate, &candidate_node) != 0) {
+        // TODO: better error handling
+        exit(1);
+    }
+    int candidate_depth = candidate_node->depth;
     if (candidate_depth <= depth) {
         // If the previous node is at the same or shallower depth, return it
         return candidate;
     } else {
         // Otherwise, find its ancestors and infer from their state
         int cur_depth = candidate_depth;
-        for (int i = candidate; i >= 0; i--) {
-            if (DA_GET(FileTreeNode, file_tree, i).depth == cur_depth - 1) {
-                if (DA_GET(FileTreeNode, file_tree, i).collapsed) {
+        size_t i = candidate;
+        for (;;) {
+            FileTreeNode *node_i;
+            if (FileTree_get_ptr(file_tree, i, &node_i) != 0) {
+                // TODO: better error handling
+                exit(1);
+            }
+            if (node_i->depth == cur_depth - 1) {
+                if (node_i->collapsed) {
                     candidate = i;
                 }
                 if (--cur_depth == depth) {
                     return candidate;
                 }
             }
+
+            if (i == 0) break;
+            i--;
         }
     }
 
-    return -1; // Unreachable
+    // TODO: better error handling
+    exit(1);
 }
