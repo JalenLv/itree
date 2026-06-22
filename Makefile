@@ -83,6 +83,7 @@ test-integration: itree
 	./tests/integration/run.sh
 
 test-dumps: itree
+	python3 tests/dumps/test_settle.py
 	python3 tests/dumps/test_rep.py
 	@echo ""
 	./tests/dumps/runner.py

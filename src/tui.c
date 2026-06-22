@@ -34,8 +34,6 @@ int run_tui(FileTree *file_tree) {
     scrollok(stdscr, FALSE);    // Disable scrolling
     mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL); // Enable mouse events
 
-    refresh();
-
     AppState app_state = {0};
     if (init_app_state(&app_state, file_tree, LINES) != 0) {
         fprintf(stderr, "Error: Failed to initialize application state.\n");

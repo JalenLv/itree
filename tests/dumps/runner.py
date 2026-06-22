@@ -52,20 +52,28 @@ ROWS, COLS = 24, 80
 def settle(child, screen, stream, idle_ms=200, max_ms=2000):
     """Read output from `child` and feed it to `stream` until `idle_ms` of
     quiet, or `max_ms` overall. Strips ANSI escapes via pyte."""
-    deadline = time.time() + max_ms / 1000.0
-    last = time.time()
-    while time.time() < deadline:
+    deadline = time.monotonic() + max_ms / 1000.0
+    last_output = None
+    while time.monotonic() < deadline:
         try:
             buf = child.read_nonblocking(size=4096, timeout=0.05)
         except pexpect.TIMEOUT:
-            if (time.time() - last) * 1000 > idle_ms:
+            if (last_output is not None and
+                    (time.monotonic() - last_output) * 1000 > idle_ms):
                 return
             continue
         except pexpect.EOF:
+            if last_output is None:
+                raise RuntimeError("TUI exited before producing terminal output")
             return
         if buf:
             stream.feed(buf)
-            last = time.time()
+            last_output = time.monotonic()
+
+    if last_output is None:
+        raise TimeoutError(
+            f"TUI produced no terminal output within {max_ms} ms")
+    raise TimeoutError(f"TUI output did not settle within {max_ms} ms")
 
 
 def render_dump(screen):
@@ -100,17 +108,20 @@ def run_case(case_path):
     child = pexpect.spawn(ITREE, extra_argv + [fixture], dimensions=(ROWS, COLS),
                           env=env, encoding=None, timeout=2)
     try:
-        settle(child, screen, stream)
-        for k in keys:
-            child.send(k.encode("utf-8") if isinstance(k, str) else k)
-            settle(child, screen, stream)
-        actual = render_dump(screen)
-        # Quit cleanly so the binary tears down ncurses and exits.
         try:
-            child.send(b"q")
-            child.expect(pexpect.EOF, timeout=2)
-        except (pexpect.TIMEOUT, OSError):
-            pass
+            settle(child, screen, stream)
+            for k in keys:
+                child.send(k.encode("utf-8") if isinstance(k, str) else k)
+                settle(child, screen, stream)
+            actual = render_dump(screen)
+            # Quit cleanly so the binary tears down ncurses and exits.
+            try:
+                child.send(b"q")
+                child.expect(pexpect.EOF, timeout=2)
+            except (pexpect.TIMEOUT, OSError):
+                pass
+        except (TimeoutError, RuntimeError) as e:
+            return name, False, str(e)
     finally:
         try:
             child.close(force=True)
