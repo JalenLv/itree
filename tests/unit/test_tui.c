@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #ifdef WIDE_NCURSES
 #include <ncursesw/ncurses.h>
@@ -65,13 +66,46 @@ TEST init_app_state_with_window_larger_than_tree(void) {
  * handle_key: navigation
  * ------------------------------------------------------------------------ */
 
-TEST q_returns_one(void) {
+TEST q_returns_minus_one(void) {
     FileTree tree = {0};
     build_flat_tree(&tree, 3);
     AppState s = {0};
     init_app_state(&s, &tree, 10);
-    ASSERT_EQ(1, handle_key(&s, 'q'));
+    ASSERT_EQ(-1, handle_key(&s, 'q'));
     delwin(s.tree_pad);
+    FileTree_free(&tree);
+    PASS();
+}
+
+TEST unknown_key_is_ignored(void) {
+    FileTree tree = {0};
+    build_flat_tree(&tree, 3);
+    AppState s = {0};
+    init_app_state(&s, &tree, 10);
+    size_t selected = s.selected_entry;
+    ASSERT_EQ(0, handle_key(&s, '?'));
+    ASSERT_EQ(selected, s.selected_entry);
+    delwin(s.tree_pad);
+    FileTree_free(&tree);
+    PASS();
+}
+
+TEST invalid_selection_returns_error(void) {
+    FileTree tree = {0};
+    build_flat_tree(&tree, 3);
+    AppState s = {0};
+    s.all_entries = &tree;
+    s.selected_entry = tree.count;
+
+    fflush(stderr);
+    int saved_stderr = dup(fileno(stderr));
+    FILE *null = freopen("/dev/null", "w", stderr); (void)null;
+    int ret = handle_key(&s, 'h');
+    fflush(stderr);
+    dup2(saved_stderr, fileno(stderr));
+    close(saved_stderr);
+
+    ASSERT_EQ(1, ret);
     FileTree_free(&tree);
     PASS();
 }
@@ -328,7 +362,9 @@ SUITE(tui_suite) {
 
     RUN_TEST(init_app_state_with_window_smaller_than_tree);
     RUN_TEST(init_app_state_with_window_larger_than_tree);
-    RUN_TEST(q_returns_one);
+    RUN_TEST(q_returns_minus_one);
+    RUN_TEST(unknown_key_is_ignored);
+    RUN_TEST(invalid_selection_returns_error);
     RUN_TEST(j_moves_selection_down);
     RUN_TEST(key_down_arrow_same_as_j);
     RUN_TEST(j_at_window_bottom_slides_window);

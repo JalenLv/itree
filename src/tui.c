@@ -47,18 +47,25 @@ int run_tui(FileTree *file_tree) {
 
     // Main loop
     int ch;
+    int ret = 0;
     while (1) {
         ch = getch();
-        // TODO("Handle handle_key error");
-        if (handle_key(&app_state, ch) != 0) break;
+        int handle_ret = handle_key(&app_state, ch);
+        if (handle_ret == -1) break;
+        if (handle_ret == 1) {
+            fprintf(stderr, "Error: Failed to handle input.\n");
+            ret = 1;
+            break;
+        }
         if (render_tui(&app_state) != 0) {
             fprintf(stderr, "Error: Failed to draw visible entries.\n");
-            return 1;
+            ret = 1;
+            break;
         }
     }
 
     endwin();
-    return 0;
+    return ret;
 }
 
 int render_tui(AppState *app_state) {
@@ -282,7 +289,7 @@ int init_app_state(AppState *app_state, FileTree *file_tree, int rows) {
 int handle_key(AppState *app_state, int ch) {
     switch (ch) {
         case 'q': {
-            return 1;
+            return -1;
         }
         case KEY_DOWN:
         case 'j': {
@@ -420,6 +427,7 @@ int handle_key(AppState *app_state, int ch) {
             handle_mouse(app_state);
             break;
         }
+        default: break; // Ignore other keys
     }
     return 0;
 }

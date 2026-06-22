@@ -74,7 +74,7 @@ void update_tree_pad(AppState *app_state);
 
 /**
  * Handles a single keystroke against the application state.
- * Returns 0 to keep running, 1 to quit.
+ * Returns 0 to keep running, -1 to quit, and 1 on error.
  */
 int handle_key(AppState *app_state, int ch);
 
