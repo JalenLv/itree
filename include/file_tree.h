@@ -2,7 +2,7 @@
 #define FILE_TREE_H
 
 #include "helpers.h"
-#include <limits.h>
+#include <stdint.h>
 
 typedef enum {
     FILE_NODE,
@@ -43,8 +43,8 @@ int create_file_tree_from_path(FileTree *file_tree, const Args *args);
  * prev(FILE_TREE_SENTINEL_TAIL) is the last visible index
  * prev(FILE_TREE_SENTINEL_HEAD) is FILE_TREE_SENTINEL_HEAD
  */
-#define FILE_TREE_SENTINEL_HEAD (INT_MIN)
-#define FILE_TREE_SENTINEL_TAIL (INT_MAX)
+#define FILE_TREE_SENTINEL_HEAD (SIZE_MAX - 1)
+#define FILE_TREE_SENTINEL_TAIL (SIZE_MAX)
 
 /**
  * Given a file tree and a visible node index, returns the next visible index.
@@ -55,7 +55,7 @@ int create_file_tree_from_path(FileTree *file_tree, const Args *args);
  * Behavior is undefined if the given index is not visible.
  * Assumes file_tree is non-empty.
  */
-int next(FileTree *file_tree, int idx);
+size_t next(FileTree *file_tree, size_t idx);
 
 /**
  * Given a file tree and a visible node index, returns the previous visible index.
@@ -66,6 +66,6 @@ int next(FileTree *file_tree, int idx);
  * Behavior is undefined if the given index is not visible.
  * Assumes file_tree is non-empty.
  */
-int prev(FileTree *file_tree, int idx);
+size_t prev(FileTree *file_tree, size_t idx);
 
 #endif // FILE_TREE_H

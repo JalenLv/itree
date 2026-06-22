@@ -86,7 +86,7 @@ int draw_visible_entries(AppState *app_state) {
     werase(app_state->tree_pad);
 
     int row = 0;
-    for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
+    for (size_t i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         // Do the drawing
         FileTreeNode *node;
         if (FileTree_get_ptr(app_state->all_entries, i, &node) != 0) {
@@ -170,7 +170,7 @@ int draw_overflow_indicator(AppState *app_state) {
     werase(of_ind_win);
 
     int row = 0;
-    for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
+    for (size_t i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         int is_overflowing = 0;
         for (int col = app_state->cols + app_state->col_offset; col < app_state->tree_pad_cols; ++col) {
             if (!pad_cell_is_blank(app_state->tree_pad, row, col)) {
@@ -197,7 +197,7 @@ int draw_overflow_indicator(AppState *app_state) {
 
 int draw_selected_entry_arrow(AppState *app_state) {
     int row = 0;
-    for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
+    for (size_t i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         if (i == app_state->selected_entry) {
             WINDOW *sel_arrow_win = newwin(1, 4, row, 0);
             if (sel_arrow_win == NULL) {
@@ -218,20 +218,20 @@ int draw_selected_entry_arrow(AppState *app_state) {
 }
 
 void update_tail_given_head(AppState *app_state) {
-    int vis_ent_cnt = 0;
-    int i = app_state->visible_entries_head, next_i;
+    size_t vis_ent_cnt = 0;
+    size_t i = app_state->visible_entries_head, next_i;
     while ((next_i = next(app_state->all_entries, i)) != FILE_TREE_SENTINEL_TAIL) {
-        if (++vis_ent_cnt >= app_state->rows) break;
+        if (++vis_ent_cnt >= (size_t)app_state->rows) break;
         i = next_i;
     }
     app_state->visible_entries_tail = next_i;
 }
 
 void update_head_given_tail(AppState *app_state) {
-    int vis_ent_cnt = 0;
-    int i = prev(app_state->all_entries, app_state->visible_entries_tail), prev_i;
+    size_t vis_ent_cnt = 0;
+    size_t i = prev(app_state->all_entries, app_state->visible_entries_tail), prev_i;
     while ((prev_i = prev(app_state->all_entries, i)) != FILE_TREE_SENTINEL_HEAD) {
-        if (++vis_ent_cnt >= app_state->rows) break;
+        if (++vis_ent_cnt >= (size_t)app_state->rows) break;
         i = prev_i;
     }
     app_state->visible_entries_head = i;
@@ -239,7 +239,7 @@ void update_head_given_tail(AppState *app_state) {
 
 void update_tree_pad(AppState *app_state) {
     int max_len = 0;
-    for (int i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
+    for (size_t i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         FileTreeNode *node;
         if (FileTree_get_ptr(app_state->all_entries, i, &node) != 0) {
             // TODO: make update_tree_pad return int so this error can propagate instead of being swallowed by continue
@@ -491,7 +491,8 @@ static int mouse_left_click(AppState *app_state, MEVENT *event) {
     int click_col = event->x;
     if (click_col < 0 || click_col >= app_state->cols || click_row < 0 || click_row >= app_state->rows) return 0;
 
-    int row = 0, i;
+    int row = 0;
+    size_t i;
     for (i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         if (row == click_row) break;
         row++;
@@ -529,7 +530,8 @@ static int mouse_left_double_click(AppState *app_state, MEVENT *event) {
     int click_col = event->x;
     if (click_col < 0 || click_col >= app_state->cols || click_row < 0 || click_row >= app_state->rows) return 0;
 
-    int row = 0, i;
+    int row = 0;
+    size_t i;
     for (i = app_state->visible_entries_head; i < app_state->visible_entries_tail; i = next(app_state->all_entries, i)) {
         if (row == click_row) break;
         row++;

@@ -14,7 +14,7 @@ int entry_cmp(const void *a, const void *b) {
     );
 }
 
-int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_hidden) {
+int walk(FileTree *file_tree, const char *path, int depth, size_t offset, int show_hidden) {
     DIR *d = opendir(path);
     if (d == NULL) {
         perror("opendir");
@@ -88,10 +88,12 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_
 
         FileTree_push(&tmp_tree, &node);
     }
+    if (FileTree_empty(&tmp_tree)) goto CLEANUP;
     FileTree_sort(&tmp_tree, entry_cmp);
     FileTree_insert(file_tree, &tmp_tree, offset);
 
-    for (int i = tmp_tree.count - 1; i >= 0; i--) {
+    size_t i = tmp_tree.count - 1;
+    for (;;) {
         FileTreeNode *node;
         if (FileTree_get_ptr(&tmp_tree, i, &node) != 0) {
             ret = 1; goto CLEANUP;
@@ -107,6 +109,9 @@ int walk(FileTree *file_tree, const char *path, int depth, int offset, int show_
                 ret = 1; goto CLEANUP;
             }
         }
+
+        if (i == 0) break;
+        i--;
     }
 
 CLEANUP:
@@ -153,13 +158,15 @@ int create_file_tree_from_path(FileTree *file_tree, const Args *args) {
     return 0;
 }
 
-int next(FileTree *file_tree, int idx) {
+size_t next(FileTree *file_tree, size_t idx) {
     if (idx == FILE_TREE_SENTINEL_HEAD) return 0;
     if (idx == FILE_TREE_SENTINEL_TAIL) return FILE_TREE_SENTINEL_TAIL;
 
     FileTreeNode *node;
     if (FileTree_get_ptr(file_tree, idx, &node) != 0) {
-        return -1;
+        // TODO: We barely do error checking on next()
+        // Better design a new way of handling next() and its potential error
+        exit(1);
     }
 
     // If the node is a file or a link, return the next index
@@ -174,10 +181,11 @@ int next(FileTree *file_tree, int idx) {
 
     // If the node is a directory and collapsed, skip its children
     int depth = node->depth;
-    for (int i = idx + 1; i < file_tree->count; i++) {
+    for (size_t i = idx + 1; i < file_tree->count; i++) {
         FileTreeNode *next_node;
         if (FileTree_get_ptr(file_tree, i, &next_node) != 0) {
-            return -1;
+            // TODO: better error handling
+            exit(1);
         }
         if (next_node->depth <= depth) {
             return i;
@@ -188,11 +196,11 @@ int next(FileTree *file_tree, int idx) {
     return FILE_TREE_SENTINEL_TAIL;
 }
 
-int prev(FileTree *file_tree, int idx) {
+size_t prev(FileTree *file_tree, size_t idx) {
     if (idx == 0) return FILE_TREE_SENTINEL_HEAD;
     if (idx == FILE_TREE_SENTINEL_HEAD) return FILE_TREE_SENTINEL_HEAD;
     if (idx == FILE_TREE_SENTINEL_TAIL) {
-        int i = 0, next_i;
+        size_t i = 0, next_i;
         while ((next_i = next(file_tree, i)) != FILE_TREE_SENTINEL_TAIL) {
             i = next_i;
         }
@@ -201,14 +209,16 @@ int prev(FileTree *file_tree, int idx) {
 
     FileTreeNode *node;
     if (FileTree_get_ptr(file_tree, idx, &node) != 0) {
-        return -1;
+        // TODO: better error handling
+        exit(1);
     }
 
     int depth = node->depth;
-    int candidate = idx - 1;
+    size_t candidate = idx - 1;
     FileTreeNode *candidate_node;
     if (FileTree_get_ptr(file_tree, candidate, &candidate_node) != 0) {
-        return -1;
+        // TODO: better error handling
+        exit(1);
     }
     int candidate_depth = candidate_node->depth;
     if (candidate_depth <= depth) {
@@ -217,10 +227,12 @@ int prev(FileTree *file_tree, int idx) {
     } else {
         // Otherwise, find its ancestors and infer from their state
         int cur_depth = candidate_depth;
-        for (int i = candidate; i >= 0; i--) {
+        size_t i = candidate;
+        for (;;) {
             FileTreeNode *node_i;
             if (FileTree_get_ptr(file_tree, i, &node_i) != 0) {
-                return -1;
+                // TODO: better error handling
+                exit(1);
             }
             if (node_i->depth == cur_depth - 1) {
                 if (node_i->collapsed) {
@@ -230,8 +242,12 @@ int prev(FileTree *file_tree, int idx) {
                     return candidate;
                 }
             }
+
+            if (i == 0) break;
+            i--;
         }
     }
 
-    return -1; // Unreachable
+    // TODO: better error handling
+    exit(1);
 }

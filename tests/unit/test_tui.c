@@ -212,7 +212,7 @@ TEST h_on_file_is_noop(void) {
     AppState s = {0};
     init_app_state(&s, &tree, 10);
     handle_key(&s, 'j'); /* sel=1 (a file) */
-    int prev_sel = s.selected_entry;
+    size_t prev_sel = s.selected_entry;
     handle_key(&s, 'h');
     ASSERT_EQ(prev_sel, s.selected_entry);
     ASSERT_EQ(0, tree.items[1].collapsed);
